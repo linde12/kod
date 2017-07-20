@@ -21,38 +21,37 @@ func (v *View) Draw() {
 			screen.SetCell(x, y, defaultStyle, rune(char))
 		}
 	}
-	screen.ShowCursor(v.buf.Cursor.x, v.buf.Cursor.y)
+	screen.ShowCursor(v.buf.Cursor.X, v.buf.Cursor.Y)
 }
 
 func (v *View) HandleEvent(ev tcell.Event) {
 	switch e := ev.(type) {
 	case *tcell.EventKey:
 		if e.Key() == tcell.KeyRune {
-			line := v.buf.CurLine()
-			line.Insert([]byte(string(e.Rune())), v.buf.Cursor.x)
+			v.buf.Insert([]byte(string(e.Rune())), v.buf.CursorPos())
 			v.buf.CursorRight()
 		} else {
 			switch e.Key() {
 			case tcell.KeyBackspace2, tcell.KeyBackspace:
 				line := v.buf.CurLine()
 				if len(line.data) > 0 {
-					if v.buf.Cursor.x > 0 {
-						line.RemoveRune(v.buf.Cursor.x - 1)
+					if v.buf.Cursor.X > 0 {
+						line.RemoveRune(v.buf.Cursor.X - 1)
 						v.buf.CursorLeft()
-					} else if v.buf.Cursor.y != 0 {
-						lineAbove := v.buf.lines[v.buf.Cursor.y-1]
+					} else if v.buf.Cursor.Y != 0 {
+						lineAbove := v.buf.lines[v.buf.Cursor.Y-1]
 						end := len(lineAbove.data)
-						v.buf.JoinLines(v.buf.Cursor.y-1, v.buf.Cursor.y)
+						v.buf.JoinLines(v.buf.Cursor.Y-1, v.buf.Cursor.Y)
 						v.buf.CursorUp()
-						v.buf.Cursor.SetX(end)
+						v.buf.Cursor.X = end
 					}
-				} else if v.buf.Cursor.y != 0 {
-					v.buf.RemoveLine(v.buf.Cursor.y)
+				} else if v.buf.Cursor.Y != 0 {
+					v.buf.RemoveLine(v.buf.Cursor.Y)
 					v.buf.CursorUp()
 					v.buf.CursorEnd()
 				}
 			case tcell.KeyEnter:
-				v.buf.Split(v.buf.Cursor.x, v.buf.Cursor.y)
+				v.buf.Insert([]byte("\n"), v.buf.CursorPos())
 				v.buf.CursorDown()
 				v.buf.CursorBegin()
 			case tcell.KeyLeft:

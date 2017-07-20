@@ -5,8 +5,8 @@ import (
 	"unicode/utf8"
 )
 
-type Line struct {
-	data []byte
+type Pos struct {
+	X, Y int
 }
 
 type LineArray struct {
@@ -59,54 +59,42 @@ func (la *LineArray) AppendLine() {
 	la.lines = append(la.lines, &Line{data: []byte{}})
 }
 
-func (la *LineArray) InsertLineAfter(pos int) {
+func (la *LineArray) InsertLineAfter(pos Pos) {
 	// insert after current line
-	pos++
+	pos.Y++
 	la.AppendLine()
 	// shift everything to the right
-	copy(la.lines[pos+1:], la.lines[pos:])
-	la.lines[pos] = &Line{}
+	copy(la.lines[pos.Y+1:], la.lines[pos.Y:])
+	la.lines[pos.Y] = &Line{}
 }
 
 func (la *LineArray) RemoveLine(pos int) {
 	la.lines = append(la.lines[:pos], la.lines[pos+1:]...)
 }
 
-func (la *LineArray) Split(x int, y int) {
-	la.InsertLineAfter(y)
-	src := la.lines[y]
-	dst := la.lines[y+1]
-	dst.Insert(src.data[x:], 0)
-	src.DeleteToEnd(x)
+func (la *LineArray) Split(pos Pos) {
+	la.InsertLineAfter(pos)
+	src := la.lines[pos.Y]
+	la.Insert(src.data[pos.X:], Pos{0, pos.Y + 1})
+	src.DeleteToEnd(pos.X)
 }
 
 func (la *LineArray) JoinLines(a int, b int) {
 	line := la.lines[a]
-	line.Insert(la.lines[b].data, len(line.data))
+	la.Insert(la.lines[b].data, Pos{len(line.data), a})
 	la.RemoveLine(b)
 }
 
-func (l *Line) Insert(value []byte, pos int) {
-	x := runeToByteIndex(l.data, pos)
+func (la *LineArray) Insert(value []byte, pos Pos) {
+	x, y := runeToByteIndex(la.lines[pos.Y].data, pos.X), pos.Y
 	for i := 0; i < len(value); i++ {
-		l.insertByte(value[i], x)
+		if value[i] == '\n' {
+			la.Split(Pos{x, y})
+			x = 0
+			y++
+			continue
+		}
+		la.lines[y].insertByte(value[i], x)
 		x++
 	}
-}
-
-func (l *Line) insertByte(value byte, pos int) {
-	l.data = append(l.data, 0)
-	// shift everything to the right
-	copy(l.data[pos+1:], l.data[pos:])
-	l.data[pos] = value
-}
-
-func (l *Line) DeleteToEnd(pos int) {
-	l.data = l.data[:pos]
-}
-
-func (l *Line) RemoveRune(pos int) {
-	startX := runeToByteIndex(l.data, pos)
-	endX := runeToByteIndex(l.data, pos+1)
-	l.data = append(l.data[:startX], l.data[endX:]...)
 }
