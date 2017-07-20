@@ -10,12 +10,17 @@ import (
 
 var (
 	screen tcell.Screen
-	buf    *Buffer
+	views  []*View
 
 	defaultStyle tcell.Style
 
 	events chan tcell.Event
 )
+
+func CurView() *View {
+	// todo: impl once we have support for multiple views
+	return views[0]
+}
 
 func HandleEvent(ev tcell.Event) {
 	switch ev.(type) {
@@ -23,7 +28,7 @@ func HandleEvent(ev tcell.Event) {
 		// TODO: Check if normal mode, if so check for
 		// "global" keybindings which aren't bound to the buffer
 		// and pass on buffer-specific keybindings
-		buf.HandleEvent(ev)
+		CurView().HandleEvent(ev)
 	}
 }
 
@@ -68,22 +73,16 @@ func main() {
 		}
 	}()
 
-	buf = NewBuffer()
+	buf := NewBuffer()
+	views = append(views, NewView(buf))
 
 	// main loop
 	for {
 		screen.Clear()
-		for y, line := range buf.lines {
-			for x, char := range line.data {
-				// TODO: Highlight line and use line.Style as style
-				// TODO: UTF-8, for now only single byte chars(ASCII)
-				screen.SetCell(x, y, defaultStyle, rune(char))
-			}
-		}
-		screen.ShowCursor(buf.Cursor.x, buf.Cursor.y)
+		CurView().Draw()
 		screen.Show()
-		var event tcell.Event
 
+		var event tcell.Event
 		select {
 		case event = <-events:
 		case <-quit:
