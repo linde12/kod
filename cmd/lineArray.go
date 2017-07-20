@@ -1,6 +1,9 @@
 package main
 
-import "strings"
+import (
+	"strings"
+	"unicode/utf8"
+)
 
 type Line struct {
 	data []byte
@@ -8,6 +11,29 @@ type Line struct {
 
 type LineArray struct {
 	lines []*Line
+}
+
+// converts a position of a rune(on the screen) to it's position in the byte array
+// graciously stolen from micro
+func runeToByteIndex(txt []byte, n int) int {
+	if n == 0 {
+		return 0
+	}
+
+	count := 0
+	i := 0
+	for len(txt) > 0 {
+		_, size := utf8.DecodeRune(txt)
+
+		txt = txt[size:]
+		count += size
+		i++
+
+		if i == n {
+			break
+		}
+	}
+	return count
 }
 
 func NewLineArray(str string) *LineArray {
@@ -50,26 +76,37 @@ func (la *LineArray) Split(x int, y int) {
 	la.InsertLineAfter(y)
 	src := la.lines[y]
 	dst := la.lines[y+1]
-
-	dstData := src.data[x:]
-	dst.data = make([]byte, len(dstData))
-	copy(dst.data, dstData)
-	src.data = src.data[:x]
+	dst.Insert(src.data[x:], 0)
+	src.DeleteToEnd(x)
 }
 
 func (la *LineArray) JoinLines(a int, b int) {
 	line := la.lines[a]
-	line.data = append(line.data, la.lines[b].data...)
+	line.Insert(la.lines[b].data, len(line.data))
 	la.RemoveLine(b)
 }
 
-func (l *Line) InsertRune(r rune, pos int) {
+func (l *Line) Insert(value []byte, pos int) {
+	x := runeToByteIndex(l.data, pos)
+	for i := 0; i < len(value); i++ {
+		l.insertByte(value[i], x)
+		x++
+	}
+}
+
+func (l *Line) insertByte(value byte, pos int) {
 	l.data = append(l.data, 0)
 	// shift everything to the right
 	copy(l.data[pos+1:], l.data[pos:])
-	l.data[pos] = byte(r)
+	l.data[pos] = value
+}
+
+func (l *Line) DeleteToEnd(pos int) {
+	l.data = l.data[:pos]
 }
 
 func (l *Line) RemoveRune(pos int) {
-	l.data = append(l.data[:pos], l.data[pos+1:]...)
+	startX := runeToByteIndex(l.data, pos)
+	endX := runeToByteIndex(l.data, pos+1)
+	l.data = append(l.data[:startX], l.data[endX:]...)
 }

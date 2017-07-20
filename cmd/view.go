@@ -16,7 +16,7 @@ func NewView(buf *Buffer) *View {
 
 func (v *View) Draw() {
 	for y, line := range v.buf.lines {
-		for x, char := range line.data {
+		for x, char := range []rune(string(line.data)) {
 			// TODO: Highlight line and use line.Style as style
 			screen.SetCell(x, y, defaultStyle, rune(char))
 		}
@@ -29,7 +29,7 @@ func (v *View) HandleEvent(ev tcell.Event) {
 	case *tcell.EventKey:
 		if e.Key() == tcell.KeyRune {
 			line := v.buf.CurLine()
-			line.InsertRune(e.Rune(), v.buf.Cursor.x)
+			line.Insert([]byte(string(e.Rune())), v.buf.Cursor.x)
 			v.buf.CursorRight()
 		} else {
 			switch e.Key() {
