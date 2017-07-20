@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -51,11 +52,24 @@ func InitScreen() {
 	screen.Clear()
 }
 
+// TODO: Add support for multiple files & stdin pipe
+func LoadInput() (b *Buffer) {
+	args := flag.Args()
+	if len(args) > 0 {
+		// TODO: Check if file exists, if it's really a file, error handling
+		f, _ := os.Open(args[0])
+		defer f.Close()
+		b = NewBuffer(f)
+	}
+	return b
+}
+
 func main() {
+	flag.Parse()
 	f, _ := os.OpenFile("out.log", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
+	defer f.Close()
 	log.SetOutput(f)
 
-	defer f.Close()
 	tcell.SetEncodingFallback(tcell.EncodingFallbackASCII)
 	InitScreen()
 	defer screen.Fini()
@@ -73,7 +87,7 @@ func main() {
 		}
 	}()
 
-	buf := NewBuffer()
+	buf := LoadInput()
 	views = append(views, NewView(buf))
 
 	// main loop

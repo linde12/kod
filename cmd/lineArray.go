@@ -1,7 +1,8 @@
 package main
 
 import (
-	"strings"
+	"bufio"
+	"io"
 	"unicode/utf8"
 )
 
@@ -36,20 +37,31 @@ func runeToByteIndex(txt []byte, n int) int {
 	return count
 }
 
-func NewLineArray(str string) *LineArray {
+func NewLineArray(in io.Reader) *LineArray {
+	// TODO: Warn about large files
 	la := LineArray{}
 
 	// alloc 1000 lines by default
 	la.lines = make([]*Line, 0, 1000)
 
-	lines := strings.Split(str, "\n")
+	br := bufio.NewReader(in)
 
-	for _, txt := range lines {
-		//TODO: Allocate more if over 1000 lines
-		line := &Line{
-			data: []byte(txt[:len(txt)]),
+	numLines := 0
+
+	for {
+		data, err := br.ReadBytes('\n')
+		if err != nil {
+			if err == io.EOF {
+				la.AppendLine()
+				numLines++
+				la.lines[numLines-1].data = data
+				break
+			}
+		} else {
+			la.AppendLine()
+			numLines++
+			la.lines[numLines-1].data = data
 		}
-		la.lines = append(la.lines, line)
 	}
 
 	return &la

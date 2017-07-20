@@ -1,15 +1,17 @@
 package main
 
+import "io"
+
 type Buffer struct {
 	*LineArray
 	Cursor Cursor
 }
 
-func NewBuffer() *Buffer {
+func NewBuffer(in io.Reader) *Buffer {
+	la := NewLineArray(in)
 	b := Buffer{
-		LineArray: &LineArray{},
+		LineArray: la,
 	}
-	b.AppendLine()
 
 	return &b
 }
