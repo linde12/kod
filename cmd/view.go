@@ -5,23 +5,42 @@ import (
 )
 
 type View struct {
-	buf *Buffer
+	buf    *Buffer
+	Width  int
+	Height int
+
+	// Topmost line in the text buffer, used for vertical scrolling
+	Topline int
 }
 
 func NewView(buf *Buffer) *View {
+	// fullscreen view
+	w, h := screen.Size()
 	return &View{
-		buf: buf,
+		buf:     buf,
+		Width:   w,
+		Height:  h,
+		Topline: 0,
 	}
 }
 
 func (v *View) Draw() {
-	for y, line := range v.buf.lines {
+	for y, line := range v.buf.lines[v.Topline:] {
 		for x, char := range []rune(string(line.data)) {
 			// TODO: Highlight line and use line.Style as style
 			screen.SetCell(x, y, defaultStyle, rune(char))
 		}
 	}
-	screen.ShowCursor(v.buf.Cursor.X, v.buf.Cursor.Y)
+	screen.ShowCursor(v.buf.Cursor.X, v.buf.Cursor.Y-v.Topline)
+}
+
+func (v *View) Relocate() {
+	y := v.buf.Cursor.Y
+	if y > v.Topline+v.Height-1 {
+		v.Topline++
+	} else if y < v.Topline {
+		v.Topline--
+	}
 }
 
 func (v *View) HandleEvent(ev tcell.Event) {
@@ -64,5 +83,8 @@ func (v *View) HandleEvent(ev tcell.Event) {
 				v.buf.CursorDown()
 			}
 		}
+
+		// relocate view
+		v.Relocate()
 	}
 }
