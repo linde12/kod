@@ -1,6 +1,6 @@
 # kod (WIP, not ready)
 
-[![GoDoc](https://godoc.org/github.com/linde12/kod?status.svg)](https://godoc.org/github.com/linde12/kod)
+[![GoDoc](https://godoc.org/github.com/linde12/kod/cmd?status.svg)](https://godoc.org/github.com/linde12/kod/cmd)
 
 kod aims to be a fast and modern terminal code-editor. It is inspired by both vim & micro.
 
