@@ -1,6 +1,8 @@
 package main
 
 import (
+	"log"
+
 	"github.com/gdamore/tcell"
 )
 
@@ -25,13 +27,24 @@ func NewView(buf *Buffer) *View {
 }
 
 func (v *View) Draw() {
+	log.Printf("data:% x\n", v.buf.CurLine().data)
 	for y, line := range v.buf.lines[v.Topline:] {
-		for x, char := range []rune(string(line.data)) {
+		visualX := 0
+		for _, char := range []rune(string(line.data)) {
 			// TODO: Highlight line and use line.Style as style
-			screen.SetCell(x, y, defaultStyle, rune(char))
+			if char == '\t' {
+				ts := tabSize - (visualX % tabSize)
+				for i := 0; i < ts; i++ {
+					screen.SetCell(visualX+i, y, defaultStyle, ' ')
+				}
+				visualX += ts
+			} else {
+				screen.SetCell(visualX, y, defaultStyle, char)
+				visualX++
+			}
 		}
 	}
-	screen.ShowCursor(v.buf.Cursor.X, v.buf.Cursor.Y-v.Topline)
+	screen.ShowCursor(v.buf.Cursor.GetVisualX(), v.buf.Cursor.Y-v.Topline)
 }
 
 func (v *View) Relocate() {
@@ -55,7 +68,7 @@ func (v *View) HandleEvent(ev tcell.Event) {
 				line := v.buf.CurLine()
 				if len(line.data) > 0 {
 					if v.buf.Cursor.X > 0 {
-						line.RemoveRune(v.buf.Cursor.X - 1)
+						v.buf.RemoveRune(Pos{v.buf.Cursor.X - 1, v.buf.Cursor.Y})
 						v.buf.CursorLeft()
 					} else if v.buf.Cursor.Y != 0 {
 						lineAbove := v.buf.lines[v.buf.Cursor.Y-1]
@@ -69,6 +82,9 @@ func (v *View) HandleEvent(ev tcell.Event) {
 					v.buf.CursorUp()
 					v.buf.CursorEnd()
 				}
+			case tcell.KeyTAB:
+				v.buf.Insert([]byte("\t"), v.buf.CursorPos())
+				v.buf.CursorRight()
 			case tcell.KeyEnter:
 				v.buf.Insert([]byte("\n"), v.buf.CursorPos())
 				v.buf.CursorDown()

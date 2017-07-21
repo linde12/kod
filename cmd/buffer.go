@@ -9,15 +9,19 @@ type Buffer struct {
 
 func NewBuffer(in io.Reader) *Buffer {
 	la := NewLineArray(in)
-	b := Buffer{
-		LineArray: la,
-	}
+	b := &Buffer{}
+	b.LineArray = la
+	b.Cursor = Cursor{buf: b}
 
-	return &b
+	return b
 }
 
 func (b *Buffer) CurLine() *Line {
-	return b.lines[b.Cursor.Y]
+	return b.GetLine(b.Cursor.Y)
+}
+
+func (b *Buffer) GetLine(y int) *Line {
+	return b.lines[y]
 }
 
 func (b *Buffer) CursorPos() Pos {
@@ -28,7 +32,7 @@ func (b *Buffer) CursorUp() {
 	if b.Cursor.Y > 0 {
 		b.Cursor.Y -= 1
 
-		if b.Cursor.X > len(b.CurLine().data) {
+		if b.Cursor.X > Count(b.CurLine().data) {
 			b.CursorEnd()
 		}
 	}
@@ -52,21 +56,28 @@ func (b *Buffer) CursorLeft() {
 		b.CursorUp()
 		b.CursorEnd()
 	}
+	b.Cursor.StoreVisualX()
 }
 
 func (b *Buffer) CursorRight() {
-	if b.Cursor.X < len(b.CurLine().data) {
+	if b.Cursor.X < Count(b.CurLine().data) {
 		b.Cursor.X += 1
 	} else if b.Cursor.Y+1 < len(b.lines) {
 		// Move down one line
 		b.CursorDown()
 		b.CursorBegin()
 	}
+	b.Cursor.StoreVisualX()
 }
 
 func (b *Buffer) CursorEnd() {
 	line := b.CurLine()
-	b.Cursor.X = len(line.data)
+	n := Count(line.data)
+	if n > 0 {
+		b.Cursor.X = n
+	} else {
+		b.Cursor.X = 0
+	}
 }
 
 func (b *Buffer) CursorBegin() {

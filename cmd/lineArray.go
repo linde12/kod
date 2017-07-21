@@ -3,11 +3,16 @@ package main
 import (
 	"bufio"
 	"io"
+	"log"
 	"unicode/utf8"
 )
 
 type Pos struct {
 	X, Y int
+}
+
+type Line struct {
+	data []byte
 }
 
 type LineArray struct {
@@ -54,13 +59,14 @@ func NewLineArray(in io.Reader) *LineArray {
 			if err == io.EOF {
 				la.AppendLine()
 				numLines++
-				la.lines[numLines-1].data = data
-				break
+				la.lines[numLines-1].data = data[:len(data)]
 			}
+			break
 		} else {
 			la.AppendLine()
 			numLines++
-			la.lines[numLines-1].data = data
+			log.Printf("data=% x\n", data)
+			la.lines[numLines-1].data = data[:len(data)-1]
 		}
 	}
 
@@ -88,7 +94,7 @@ func (la *LineArray) Split(pos Pos) {
 	la.InsertLineAfter(pos)
 	src := la.lines[pos.Y]
 	la.Insert(src.data[pos.X:], Pos{0, pos.Y + 1})
-	src.DeleteToEnd(pos.X)
+	la.DeleteToEnd(pos)
 }
 
 func (la *LineArray) JoinLines(a int, b int) {
@@ -106,7 +112,26 @@ func (la *LineArray) Insert(value []byte, pos Pos) {
 			y++
 			continue
 		}
-		la.lines[y].insertByte(value[i], x)
+		la.insertByte(value[i], Pos{x, y})
 		x++
 	}
+}
+
+func (la *LineArray) insertByte(value byte, pos Pos) {
+	line := la.lines[pos.Y]
+	line.data = append(line.data, 0)
+	// shift everything to the right
+	copy(line.data[pos.X+1:], line.data[pos.X:])
+	line.data[pos.X] = value
+}
+
+func (la *LineArray) DeleteToEnd(pos Pos) {
+	la.lines[pos.Y].data = la.lines[pos.Y].data[:pos.X]
+}
+
+func (la *LineArray) RemoveRune(pos Pos) {
+	line := la.lines[pos.Y]
+	startX := runeToByteIndex(line.data, pos.X)
+	endX := runeToByteIndex(line.data, pos.X+1)
+	line.data = append(line.data[:startX], line.data[endX:]...)
 }
