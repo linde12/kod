@@ -1,19 +1,44 @@
 package main
 
-import "io"
+import (
+	"io"
+	"os"
+)
 
 type Buffer struct {
 	*LineArray
 	Cursor Cursor
+	Path   string
 }
 
-func NewBuffer(in io.Reader) *Buffer {
+func NewBuffer(in io.Reader, path string) *Buffer {
 	la := NewLineArray(in)
 	b := &Buffer{}
 	b.LineArray = la
 	b.Cursor = Cursor{buf: b}
+	b.Path = path
 
 	return b
+}
+
+func (b *Buffer) Save() error {
+	return b.SaveAs(b.Path)
+}
+
+func (b *Buffer) SaveAs(filename string) error {
+	r := NewBufferReader(b)
+	f, err := os.Create(filename)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	_, err = io.Copy(f, r)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (b *Buffer) CurLine() *Line {
