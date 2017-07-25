@@ -1,9 +1,8 @@
-package main
+package editor
 
 import (
 	"bufio"
 	"io"
-	"log"
 	"unicode/utf8"
 )
 
@@ -65,7 +64,6 @@ func NewLineArray(in io.Reader) *LineArray {
 		} else {
 			la.AppendLine()
 			numLines++
-			log.Printf("data=% x\n", data)
 			la.lines[numLines-1].data = data[:len(data)-1]
 		}
 	}

@@ -1,4 +1,4 @@
-package main
+package editor
 
 import (
 	"fmt"
@@ -8,13 +8,29 @@ import (
 	"github.com/gdamore/tcell"
 )
 
+type Command interface {
+	Apply(e *Editor)
+}
+
+type Mode interface {
+	OnKey(ev *tcell.EventKey)
+}
+
 type Editor struct {
 	screen tcell.Screen
 	Views  []*View
+	Mode   Mode
 
 	defaultStyle tcell.Style
 
+	// ui events
 	events chan tcell.Event
+	// user events
+	Commands chan Command
+}
+
+func (e *Editor) SetMode(m Mode) {
+	e.Mode = m
 }
 
 func (e *Editor) CurView() *View {
@@ -65,11 +81,17 @@ func NewEditor() *Editor {
 	e := &Editor{}
 
 	tcell.SetEncodingFallback(tcell.EncodingFallbackASCII)
+
+	// screen event channel
+	e.events = make(chan tcell.Event, 50)
+	e.Commands = make(chan Command, 50)
+	return e
+}
+
+func (e *Editor) Start() {
 	e.initScreen()
 	defer e.screen.Fini()
 
-	// screen event channel
-	e.events = make(chan tcell.Event, 100)
 	quit := make(chan bool, 1)
 
 	go func() {
@@ -84,7 +106,7 @@ func NewEditor() *Editor {
 	buf := e.loadInput()
 	e.Views = append(e.Views, NewView(e, buf))
 
-	// main loop
+	// editor loop
 	for {
 		e.screen.Clear()
 		e.CurView().Draw()
@@ -93,6 +115,8 @@ func NewEditor() *Editor {
 		var event tcell.Event
 		select {
 		case event = <-e.events:
+		case cmd := <-e.Commands:
+			cmd.Apply(e)
 		case <-quit:
 			e.screen.Fini()
 			log.Println("bye")
@@ -103,7 +127,7 @@ func NewEditor() *Editor {
 			switch ev := event.(type) {
 			case *tcell.EventKey:
 				switch ev.Key() {
-				case tcell.KeyEscape:
+				case tcell.KeyF1:
 					close(quit)
 				}
 			case *tcell.EventResize:
