@@ -8,13 +8,19 @@ import (
 	"github.com/linde12/kod/editor"
 )
 
+const (
+	OpNone = iota
+	OpGlobal
+)
+
 type NormalMode struct {
 	editor *editor.Editor
 	count  string
+	op     int
 }
 
 func NewNormalMode(e *editor.Editor) *NormalMode {
-	return &NormalMode{e, ""}
+	return &NormalMode{e, "", OpNone}
 }
 
 func (m *NormalMode) OnKey(ev *tcell.EventKey) {
@@ -47,6 +53,19 @@ func (m *NormalMode) OnKey(ev *tcell.EventKey) {
 			editor.Commands <- commands.Repeat{commands.MoveRune{Dir: commands.MoveDown}, nrepeat}
 		case 'i':
 			editor.SetMode(NewInsertMode(editor))
+		case '0':
+			editor.Commands <- commands.MoveBOL{}
+		case '$':
+			editor.Commands <- commands.MoveEOL{}
+		case 'g':
+			if m.op == OpGlobal {
+				editor.Commands <- commands.MoveStartOfBuffer{}
+				m.op = OpNone
+			} else {
+				m.op = OpGlobal
+			}
+		case 'G':
+			editor.Commands <- commands.MoveEndOfBuffer{}
 		}
 	} else {
 		switch ev.Key() {

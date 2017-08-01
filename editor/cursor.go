@@ -77,3 +77,13 @@ func (c *Cursor) End() {
 func (c *Cursor) Begin() {
 	c.X = 0
 }
+
+func (c *Cursor) StartOfBuffer() {
+	c.Y = 0
+	c.X = 0
+}
+
+func (c *Cursor) EndOfBuffer() {
+	c.Y = len(c.buf.lines) - 1
+	c.End()
+}

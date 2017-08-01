@@ -5,11 +5,11 @@ import (
 )
 
 const (
-	MoveUp        = 0
-	MoveDown      = 1
-	MoveLeft      = 2
-	MoveRight     = 3
-	MoveWordRight = 4
+	MoveUp = iota
+	MoveDown
+	MoveLeft
+	MoveRight
+	MoveWordRight
 )
 
 type MoveEOL struct{}
@@ -18,6 +18,14 @@ func (m MoveEOL) Apply(e *editor.Editor) {
 	v := e.CurView()
 	c := v.Cursor
 	c.End()
+}
+
+type MoveBOL struct{}
+
+func (m MoveBOL) Apply(e *editor.Editor) {
+	v := e.CurView()
+	c := v.Cursor
+	c.Begin()
 }
 
 type MoveRune struct {
@@ -36,4 +44,20 @@ func (m MoveRune) Apply(e *editor.Editor) {
 	case MoveRight:
 		v.Cursor.Right()
 	}
+}
+
+type MoveStartOfBuffer struct{}
+
+func (m MoveStartOfBuffer) Apply(e *editor.Editor) {
+	v := e.CurView()
+	c := v.Cursor
+	c.StartOfBuffer()
+}
+
+type MoveEndOfBuffer struct{}
+
+func (m MoveEndOfBuffer) Apply(e *editor.Editor) {
+	v := e.CurView()
+	c := v.Cursor
+	c.EndOfBuffer()
 }
