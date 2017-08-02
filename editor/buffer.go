@@ -5,12 +5,14 @@ import (
 	"os"
 )
 
+// Buffer is where a content of a file belongs. It is used to represent what should be rendered to the screen.
 type Buffer struct {
 	*LineArray
 	Cursor *Cursor
 	Path   string
 }
 
+// NewBuffer creates a new buffer by reading from the passed `in` argument.
 func NewBuffer(in io.Reader, path string) *Buffer {
 	la := NewLineArray(in)
 	b := &Buffer{}
@@ -21,13 +23,15 @@ func NewBuffer(in io.Reader, path string) *Buffer {
 	return b
 }
 
+// Save saves the buffer to the path arguments passed to `NewBuffer`.
 func (b *Buffer) Save() error {
 	return b.SaveAs(b.Path)
 }
 
-func (b *Buffer) SaveAs(filename string) error {
+// SaveAs saves the buffer to the passed path.
+func (b *Buffer) SaveAs(path string) error {
 	r := NewBufferReader(b)
-	f, err := os.Create(filename)
+	f, err := os.Create(path)
 	if err != nil {
 		return err
 	}
@@ -41,18 +45,23 @@ func (b *Buffer) SaveAs(filename string) error {
 	return nil
 }
 
+// CurLine returns the current Y position of the main cursor.
 func (b *Buffer) CurLine() *Line {
 	return b.GetLine(b.Cursor.Y)
 }
 
+// GetLine returns the current line under the main cursor.
 func (b *Buffer) GetLine(y int) *Line {
 	return b.lines[y]
 }
 
+// CursorPos returns the current position of the cursor in form of a `Pos`.
 func (b *Buffer) CursorPos() Pos {
 	return Pos{b.Cursor.X, b.Cursor.Y}
 }
 
+// DeleteRuneBackward deletes a rune backward starting at the main cursor's position.
+// If there is no more rune behind the cursor's position, the line will be joined with the line above.
 func (b *Buffer) DeleteRuneBackward() {
 	line := b.CurLine()
 	if len(line.data) > 0 {
