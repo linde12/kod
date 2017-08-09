@@ -2,11 +2,15 @@ package editor
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"os"
 
 	"github.com/gdamore/tcell"
+	"github.com/linde12/kod/rpc"
 )
+
+type Params map[string]interface{}
 
 type Command interface {
 	Apply(e *Editor)
@@ -20,6 +24,7 @@ type Editor struct {
 	screen tcell.Screen
 	Views  []*View
 	Mode   Mode
+	rpc    *rpc.Connection
 
 	defaultStyle tcell.Style
 
@@ -34,7 +39,10 @@ func (e *Editor) SetMode(m Mode) {
 }
 
 func (e *Editor) CurView() *View {
-	return e.Views[0]
+	if len(e.Views) > 0 {
+		return e.Views[0]
+	}
+	return nil
 }
 
 func (e *Editor) initScreen() {
@@ -66,18 +74,7 @@ func (e *Editor) handleEvent(ev tcell.Event) {
 	}
 }
 
-// TODO: Add support for multiple files & stdin pipe
-func (e *Editor) loadInput() (b *Buffer) {
-	if len(os.Args) > 1 {
-		// TODO: Check if file exists, if it's really a file, error handling
-		f, _ := os.Open(os.Args[1])
-		defer f.Close()
-		b = NewBuffer(f, os.Args[1])
-	}
-	return b
-}
-
-func NewEditor() *Editor {
+func NewEditor(rw io.ReadWriter) *Editor {
 	e := &Editor{}
 
 	tcell.SetEncodingFallback(tcell.EncodingFallbackASCII)
@@ -85,6 +82,8 @@ func NewEditor() *Editor {
 	// screen event channel
 	e.events = make(chan tcell.Event, 50)
 	e.Commands = make(chan Command, 50)
+
+	e.rpc = rpc.NewConnection(rw)
 	return e
 }
 
@@ -103,13 +102,20 @@ func (e *Editor) Start() {
 		}
 	}()
 
-	buf := e.loadInput()
-	e.Views = append(e.Views, NewView(e, buf))
+	path := os.Args[1]
+	_, err := e.rpc.Send("new_view", &rpc.Params{"file_path": path})
+	if err != nil {
+		log.Println(err)
+	}
+	//buf := NewBuffer(strings.NewReader(res.Params["text"].(string)), path)
+	//e.Views = append(e.Views, NewView(e, buf))
 
 	// editor loop
 	for {
 		e.screen.Clear()
-		e.CurView().Draw()
+		if e.CurView() != nil {
+			e.CurView().Draw()
+		}
 		e.screen.Show()
 
 		var event tcell.Event
