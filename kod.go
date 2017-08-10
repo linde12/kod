@@ -7,7 +7,6 @@ import (
 	"os/exec"
 
 	"github.com/linde12/kod/editor"
-	"github.com/linde12/kod/mode"
 )
 
 type readwriter struct {
@@ -28,6 +27,5 @@ func main() {
 
 	rw := readwriter{stdout, stdin}
 	e := editor.NewEditor(rw)
-	e.SetMode(mode.NewNormalMode(e))
 	e.Start()
 }

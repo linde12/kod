@@ -11,28 +11,33 @@ import (
 
 const LF = 0xA // Line-feed
 
+type RequestHandler func(*Message)
+
 // Params is the JSON field `params` in the RPC message
 type Params map[string]interface{}
 
 // Message is a representation of a RPC message
 type Message struct {
-	Id     int    `json:"id"`
-	Method string `json:"method"`
-	Params Params `json:"params"`
-	Error  string `json:"error,omitempty"`
+	Id     int         `json:"id"`
+	Method string      `json:"method"`
+	Params Params      `json:"params"`
+	Error  string      `json:"error,omitempty"`
+	Result interface{} `json:"result,omitempty"`
 }
 
 // Connection represents the connection to the backend.
 // The underlying protocol doesn't matter as long as it is writeable and readable.
 type Connection struct {
 	rw       io.ReadWriter
+	rh       RequestHandler
 	rpcIndex int
 	pending  map[int]func(*Message)
 }
 
-func NewConnection(rw io.ReadWriter) *Connection {
+func NewConnection(rw io.ReadWriter, rh RequestHandler) *Connection {
 	c := &Connection{
 		rw:      rw,
+		rh:      rh,
 		pending: make(map[int]func(*Message)),
 	}
 
@@ -49,16 +54,27 @@ func (c *Connection) recv() {
 		var msg Message
 		json.Unmarshal([]byte(in.Text()), &msg)
 
-		// TODO: Check message type(notification, request or response)
-		if fn, ok := c.pending[msg.Id]; ok {
-			fn(&msg)
+		if msg.Id != 0 {
+			if msg.Result != nil {
+				// response
+				if fn, ok := c.pending[msg.Id]; ok {
+					fn(&msg)
+				}
+			} else {
+				// request
+				c.rh(&msg)
+				// TODO: Handle requests
+			}
+		} else {
+			// notification
+			c.rh(&msg)
+			// TODO: Handle notifications
 		}
 	}
 
 	if in.Err() != nil {
 		log.Printf("error: %s", in.Err())
 	}
-	log.Println("Done")
 }
 
 func (c *Connection) send(method string, params *Params) int {

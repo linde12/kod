@@ -56,51 +56,51 @@ func (v *View) Relocate() {
 }
 
 func (v *View) HandleEvent(ev tcell.Event) {
-	switch e := ev.(type) {
-	case *tcell.EventKey:
-		v.Editor.Mode.OnKey(e)
-		//if e.Key() == tcell.KeyRune {
-		//v.Insert([]byte(string(e.Rune())), v.CursorPos())
-		//v.CursorRight()
-		//} else {
-		//switch e.Key() {
-		//case tcell.KeyBackspace2, tcell.KeyBackspace:
-		//line := v.CurLine()
-		//if len(line.data) > 0 {
-		//if v.Cursor.X > 0 {
-		//v.RemoveRune(Pos{v.Cursor.X - 1, v.Cursor.Y})
-		//v.CursorLeft()
-		//} else if v.Cursor.Y != 0 {
-		//lineAbove := v.lines[v.Cursor.Y-1]
-		//end := len(lineAbove.data)
-		//v.JoinLines(v.Cursor.Y-1, v.Cursor.Y)
-		//v.CursorUp()
-		//v.Cursor.X = end
-		//}
-		//} else if v.Cursor.Y != 0 {
-		//v.RemoveLine(v.Cursor.Y)
-		//v.CursorUp()
-		//v.CursorEnd()
-		//}
-		//case tcell.KeyTAB:
-		//v.Insert([]byte("\t"), v.CursorPos())
-		//v.CursorRight()
-		//case tcell.KeyEnter:
-		//v.Insert([]byte("\n"), v.CursorPos())
-		//v.CursorDown()
-		//v.CursorBegin()
-		//case tcell.KeyLeft:
-		//v.CursorLeft()
-		//case tcell.KeyUp:
-		//v.CursorUp()
-		//case tcell.KeyRight:
-		//v.CursorRight()
-		//case tcell.KeyDown:
-		//v.CursorDown()
-		//}
-		//}
+	//switch e := ev.(type) {
+	//case *tcell.EventKey:
+	//v.Editor.Mode.OnKey(e)
+	//if e.Key() == tcell.KeyRune {
+	//v.Insert([]byte(string(e.Rune())), v.CursorPos())
+	//v.CursorRight()
+	//} else {
+	//switch e.Key() {
+	//case tcell.KeyBackspace2, tcell.KeyBackspace:
+	//line := v.CurLine()
+	//if len(line.data) > 0 {
+	//if v.Cursor.X > 0 {
+	//v.RemoveRune(Pos{v.Cursor.X - 1, v.Cursor.Y})
+	//v.CursorLeft()
+	//} else if v.Cursor.Y != 0 {
+	//lineAbove := v.lines[v.Cursor.Y-1]
+	//end := len(lineAbove.data)
+	//v.JoinLines(v.Cursor.Y-1, v.Cursor.Y)
+	//v.CursorUp()
+	//v.Cursor.X = end
+	//}
+	//} else if v.Cursor.Y != 0 {
+	//v.RemoveLine(v.Cursor.Y)
+	//v.CursorUp()
+	//v.CursorEnd()
+	//}
+	//case tcell.KeyTAB:
+	//v.Insert([]byte("\t"), v.CursorPos())
+	//v.CursorRight()
+	//case tcell.KeyEnter:
+	//v.Insert([]byte("\n"), v.CursorPos())
+	//v.CursorDown()
+	//v.CursorBegin()
+	//case tcell.KeyLeft:
+	//v.CursorLeft()
+	//case tcell.KeyUp:
+	//v.CursorUp()
+	//case tcell.KeyRight:
+	//v.CursorRight()
+	//case tcell.KeyDown:
+	//v.CursorDown()
+	//}
+	//}
 
-		// relocate view
-		v.Relocate()
-	}
+	// relocate view
+	v.Relocate()
+	//}
 }

@@ -16,14 +16,9 @@ type Command interface {
 	Apply(e *Editor)
 }
 
-type Mode interface {
-	OnKey(ev *tcell.EventKey)
-}
-
 type Editor struct {
 	screen tcell.Screen
 	Views  []*View
-	Mode   Mode
 	rpc    *rpc.Connection
 
 	defaultStyle tcell.Style
@@ -32,10 +27,6 @@ type Editor struct {
 	events chan tcell.Event
 	// user events
 	Commands chan Command
-}
-
-func (e *Editor) SetMode(m Mode) {
-	e.Mode = m
 }
 
 func (e *Editor) CurView() *View {
@@ -83,7 +74,10 @@ func NewEditor(rw io.ReadWriter) *Editor {
 	e.events = make(chan tcell.Event, 50)
 	e.Commands = make(chan Command, 50)
 
-	e.rpc = rpc.NewConnection(rw)
+	e.rpc = rpc.NewConnection(rw, func(msg *rpc.Message) {
+		log.Println(msg)
+	})
+
 	return e
 }
 
