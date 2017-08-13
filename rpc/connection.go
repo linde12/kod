@@ -28,17 +28,17 @@ type Message struct {
 // Connection represents the connection to the backend.
 // The underlying protocol doesn't matter as long as it is writeable and readable.
 type Connection struct {
-	rw       io.ReadWriter
-	rh       RequestHandler
-	rpcIndex int
-	pending  map[int]func(*Message)
+	rw            io.ReadWriter
+	handleRequest RequestHandler
+	rpcIndex      int
+	pending       map[int]func(*Message)
 }
 
 func NewConnection(rw io.ReadWriter, rh RequestHandler) *Connection {
 	c := &Connection{
-		rw:      rw,
-		rh:      rh,
-		pending: make(map[int]func(*Message)),
+		rw:            rw,
+		handleRequest: rh,
+		pending:       make(map[int]func(*Message)),
 	}
 
 	go c.recv()
@@ -62,12 +62,12 @@ func (c *Connection) recv() {
 				}
 			} else {
 				// request
-				c.rh(&msg)
+				c.handleRequest(&msg)
 				// TODO: Handle requests
 			}
 		} else {
 			// notification
-			c.rh(&msg)
+			c.handleRequest(&msg)
 			// TODO: Handle notifications
 		}
 	}
