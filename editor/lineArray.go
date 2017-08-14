@@ -53,23 +53,19 @@ func NewLineArray() *LineArray {
 }
 
 func (la *LineArray) ApplyUpdate(msg *rpc.Message) {
-	update := msg.Params["update"].(map[string]interface{})
-	ops := update["ops"].([]interface{})
+	update := msg.Value.(*rpc.Update).Update
 
-	for _, op := range ops {
-		opMap := op.(map[string]interface{})
-		opType := opMap["op"].(string)
+	for _, op := range update.Ops {
+		opType := op.Op
 
 		switch opType {
 		case "invalidate":
 			log.Println("invalidate")
 		case "ins":
-			lines := opMap["lines"].([]interface{})
+			lines := op.Lines
 			for y, line := range lines {
-				lineMap := line.(map[string]interface{})
-				text := lineMap["text"].(string)
 				la.AppendLine()
-				la.Insert([]byte(text), Pos{0, y})
+				la.Insert([]byte(line.Text), Pos{0, y})
 			}
 			log.Println(lines)
 		default:

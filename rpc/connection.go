@@ -13,16 +13,29 @@ const LF = 0xA // Line-feed
 
 type RequestHandler func(*Message)
 
-// Params is the JSON field `params` in the RPC message
+// Params is the JSON field `params` in the RPC message.
 type Params map[string]interface{}
 
-// Message is a representation of a RPC message
+// incomingMessage is a representation of an incoming RPC message.
+type incomingMessage struct {
+	Id     int             `json:"id"`
+	Method string          `json:"method"`
+	Params json.RawMessage `json:"params"`
+	Error  string          `json:"error,omitempty"`
+	Result interface{}     `json:"result,omitempty"`
+}
+
+// outgoingMessage is a representation of an outgoing RPC message.
+type outgoingMessage struct {
+	Id     int     `json:"id"`
+	Method string  `json:"method"`
+	Params *Params `json:"params"`
+}
+
+// Message is a deserialized message which will be passed to the `Messages` channel.
 type Message struct {
-	Id     int         `json:"id"`
-	Method string      `json:"method"`
-	Params Params      `json:"params"`
-	Error  string      `json:"error,omitempty"`
-	Result interface{} `json:"result,omitempty"`
+	Method string
+	Value  interface{}
 }
 
 // Connection represents the connection to the backend.
@@ -51,24 +64,27 @@ func (c *Connection) recv() {
 
 	for in.Scan() {
 		log.Printf("<<< %s\n", in.Text())
-		var msg Message
+		var msg incomingMessage
 		json.Unmarshal([]byte(in.Text()), &msg)
 
 		if msg.Id != 0 {
 			if msg.Result != nil {
 				// response
 				if fn, ok := c.pending[msg.Id]; ok {
-					fn(&msg)
+					fn(&Message{msg.Method, msg.Result})
+				} else {
+					log.Println("unhandled response: ", msg)
 				}
-			} else {
-				// request
-				c.Messages <- &msg
-				// TODO: Handle requests
 			}
 		} else {
-			// notification
-			c.Messages <- &msg
-			// TODO: Handle notifications
+			// request
+			if msg.Method == "update" {
+				var update Update
+				json.Unmarshal(msg.Params, &update)
+				c.Messages <- &Message{msg.Method, &update}
+			} else {
+				log.Println("unhandled request: " + msg.Method)
+			}
 		}
 	}
 
@@ -78,10 +94,10 @@ func (c *Connection) recv() {
 }
 
 func (c *Connection) send(id int, method string, params *Params) int {
-	msg := Message{
+	msg := outgoingMessage{
 		Id:     c.rpcIndex,
 		Method: method,
-		Params: *params,
+		Params: params,
 	}
 	b, _ := json.Marshal(&msg)
 	log.Printf(">>> %s\n", b)

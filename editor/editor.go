@@ -97,10 +97,12 @@ func (e *Editor) ViewByID(viewID string) (*View, error) {
 func (e *Editor) handleRequests() {
 	for {
 		msg := <-e.rpc.Messages
-		if msg.Method == "update" {
-			viewID := msg.Params["view_id"].(string)
 
-			if view, err := e.ViewByID(viewID); err == nil {
+		switch msg.Value.(type) {
+		case *rpc.Update:
+			update := msg.Value.(*rpc.Update)
+
+			if view, err := e.ViewByID(update.ViewID); err == nil {
 				view.ApplyUpdate(msg)
 			} else {
 				log.Printf("can't update view: %s", err)
@@ -133,7 +135,7 @@ func (e *Editor) Start() {
 	}
 
 	buf := NewBuffer(path)
-	viewID := msg.Result.(string)
+	viewID := msg.Value.(string)
 	e.Views[viewID] = NewView(viewID, e, buf)
 	e.curViewID = viewID
 
