@@ -1,25 +1,27 @@
 package editor
 
 import (
+	"errors"
 	"fmt"
+	"io"
 	"log"
 	"os"
 
 	"github.com/gdamore/tcell"
+	"github.com/linde12/kod/rpc"
 )
+
+type Params map[string]interface{}
 
 type Command interface {
 	Apply(e *Editor)
 }
 
-type Mode interface {
-	OnKey(ev *tcell.EventKey)
-}
-
 type Editor struct {
-	screen tcell.Screen
-	Views  []*View
-	Mode   Mode
+	screen    tcell.Screen
+	Views     map[string]*View
+	curViewID string
+	rpc       *rpc.Connection
 
 	defaultStyle tcell.Style
 
@@ -29,12 +31,8 @@ type Editor struct {
 	Commands chan Command
 }
 
-func (e *Editor) SetMode(m Mode) {
-	e.Mode = m
-}
-
-func (e *Editor) CurView() *View {
-	return e.Views[0]
+func (e *Editor) CurView() (*View, error) {
+	return e.ViewByID(e.curViewID)
 }
 
 func (e *Editor) initScreen() {
@@ -62,22 +60,16 @@ func (e *Editor) handleEvent(ev tcell.Event) {
 		// TODO: Check if normal mode, if so check for
 		// "global" keybindings which aren't bound to the buffer
 		// and pass on buffer-specific keybindings
-		e.CurView().HandleEvent(ev)
+		v, err := e.CurView()
+		if err != nil {
+			log.Println("can't find view: %s", err)
+		}
+
+		v.HandleEvent(ev)
 	}
 }
 
-// TODO: Add support for multiple files & stdin pipe
-func (e *Editor) loadInput() (b *Buffer) {
-	if len(os.Args) > 1 {
-		// TODO: Check if file exists, if it's really a file, error handling
-		f, _ := os.Open(os.Args[1])
-		defer f.Close()
-		b = NewBuffer(f, os.Args[1])
-	}
-	return b
-}
-
-func NewEditor() *Editor {
+func NewEditor(rw io.ReadWriter) *Editor {
 	e := &Editor{}
 
 	tcell.SetEncodingFallback(tcell.EncodingFallbackASCII)
@@ -85,7 +77,38 @@ func NewEditor() *Editor {
 	// screen event channel
 	e.events = make(chan tcell.Event, 50)
 	e.Commands = make(chan Command, 50)
+
+	e.Views = make(map[string]*View)
+
+	e.rpc = rpc.NewConnection(rw)
+
 	return e
+}
+
+func (e *Editor) ViewByID(viewID string) (*View, error) {
+	view, ok := e.Views[viewID]
+	if ok {
+		return view, nil
+	} else {
+		return nil, errors.New("view not found:" + viewID)
+	}
+}
+
+func (e *Editor) handleRequests() {
+	for {
+		msg := <-e.rpc.Messages
+
+		switch msg.Value.(type) {
+		case *rpc.Update:
+			update := msg.Value.(*rpc.Update)
+
+			if view, err := e.ViewByID(update.ViewID); err == nil {
+				view.ApplyUpdate(msg)
+			} else {
+				log.Printf("can't update view: %s", err)
+			}
+		}
+	}
 }
 
 func (e *Editor) Start() {
@@ -103,13 +126,29 @@ func (e *Editor) Start() {
 		}
 	}()
 
-	buf := e.loadInput()
-	e.Views = append(e.Views, NewView(e, buf))
+	path := os.Args[1]
+	log.Println("Sending...")
+	msg, err := e.rpc.Send("new_view", &rpc.Params{"file_path": path})
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	buf := NewBuffer(path)
+	viewID := msg.Value.(string)
+	e.Views[viewID] = NewView(viewID, e, buf)
+	e.curViewID = viewID
+
+	go e.handleRequests()
 
 	// editor loop
 	for {
+		curView, err := e.CurView()
+		if err != nil {
+			log.Printf("can't find view: %s", err)
+		}
 		e.screen.Clear()
-		e.CurView().Draw()
+		curView.Draw()
 		e.screen.Show()
 
 		var event tcell.Event

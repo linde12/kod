@@ -13,8 +13,8 @@ type Buffer struct {
 }
 
 // NewBuffer creates a new buffer by reading from the passed `in` argument.
-func NewBuffer(in io.Reader, path string) *Buffer {
-	la := NewLineArray(in)
+func NewBuffer(path string) *Buffer {
+	la := NewLineArray()
 	b := &Buffer{}
 	b.LineArray = la
 	b.Cursor = &Cursor{buf: b}

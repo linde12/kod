@@ -1,9 +1,10 @@
 package editor
 
 import (
-	"bufio"
-	"io"
+	"log"
 	"unicode/utf8"
+
+	"github.com/linde12/kod/rpc"
 )
 
 type Pos struct {
@@ -41,34 +42,36 @@ func runeToByteIndex(txt []byte, n int) int {
 	return count
 }
 
-func NewLineArray(in io.Reader) *LineArray {
+func NewLineArray() *LineArray {
 	// TODO: Warn about large files
 	la := LineArray{}
 
-	// alloc 1000 lines by default
-	la.lines = make([]*Line, 0, 1000)
-
-	br := bufio.NewReader(in)
-
-	numLines := 0
-
-	for {
-		data, err := br.ReadBytes('\n')
-		if err != nil {
-			if err == io.EOF {
-				la.AppendLine()
-				numLines++
-				la.lines[numLines-1].data = data[:len(data)]
-			}
-			break
-		} else {
-			la.AppendLine()
-			numLines++
-			la.lines[numLines-1].data = data[:len(data)-1]
-		}
-	}
+	// alloc 100 lines by default
+	la.lines = make([]*Line, 0, 100)
 
 	return &la
+}
+
+func (la *LineArray) ApplyUpdate(msg *rpc.Message) {
+	update := msg.Value.(*rpc.Update).Update
+
+	for _, op := range update.Ops {
+		opType := op.Op
+
+		switch opType {
+		case "invalidate":
+			log.Println("invalidate")
+		case "ins":
+			lines := op.Lines
+			for y, line := range lines {
+				la.AppendLine()
+				la.Insert([]byte(line.Text), Pos{0, y})
+			}
+			log.Println(lines)
+		default:
+			log.Println("other: " + opType)
+		}
+	}
 }
 
 func (la *LineArray) AppendLine() {
