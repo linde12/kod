@@ -1,6 +1,7 @@
 package editor
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -17,9 +18,10 @@ type Command interface {
 }
 
 type Editor struct {
-	screen tcell.Screen
-	Views  []*View
-	rpc    *rpc.Connection
+	screen    tcell.Screen
+	Views     map[string]*View
+	curViewID string
+	rpc       *rpc.Connection
 
 	defaultStyle tcell.Style
 
@@ -29,11 +31,8 @@ type Editor struct {
 	Commands chan Command
 }
 
-func (e *Editor) CurView() *View {
-	if len(e.Views) > 0 {
-		return e.Views[0]
-	}
-	return nil
+func (e *Editor) CurView() (*View, error) {
+	return e.ViewByID(e.curViewID)
 }
 
 func (e *Editor) initScreen() {
@@ -61,7 +60,12 @@ func (e *Editor) handleEvent(ev tcell.Event) {
 		// TODO: Check if normal mode, if so check for
 		// "global" keybindings which aren't bound to the buffer
 		// and pass on buffer-specific keybindings
-		e.CurView().HandleEvent(ev)
+		v, err := e.CurView()
+		if err != nil {
+			log.Println("can't find view: %s", err)
+		}
+
+		v.HandleEvent(ev)
 	}
 }
 
@@ -74,11 +78,35 @@ func NewEditor(rw io.ReadWriter) *Editor {
 	e.events = make(chan tcell.Event, 50)
 	e.Commands = make(chan Command, 50)
 
-	e.rpc = rpc.NewConnection(rw, func(msg *rpc.Message) {
-		log.Println(msg)
-	})
+	e.Views = make(map[string]*View)
+
+	e.rpc = rpc.NewConnection(rw)
 
 	return e
+}
+
+func (e *Editor) ViewByID(viewID string) (*View, error) {
+	view, ok := e.Views[viewID]
+	if ok {
+		return view, nil
+	} else {
+		return nil, errors.New("view not found:" + viewID)
+	}
+}
+
+func (e *Editor) handleRequests() {
+	for {
+		msg := <-e.rpc.Messages
+		if msg.Method == "update" {
+			viewID := msg.Params["view_id"].(string)
+
+			if view, err := e.ViewByID(viewID); err == nil {
+				view.ApplyUpdate(msg)
+			} else {
+				log.Printf("can't update view: %s", err)
+			}
+		}
+	}
 }
 
 func (e *Editor) Start() {
@@ -97,19 +125,28 @@ func (e *Editor) Start() {
 	}()
 
 	path := os.Args[1]
-	_, err := e.rpc.Send("new_view", &rpc.Params{"file_path": path})
+	log.Println("Sending...")
+	msg, err := e.rpc.Send("new_view", &rpc.Params{"file_path": path})
 	if err != nil {
 		log.Println(err)
+		return
 	}
-	//buf := NewBuffer(strings.NewReader(res.Params["text"].(string)), path)
-	//e.Views = append(e.Views, NewView(e, buf))
+
+	buf := NewBuffer(path)
+	viewID := msg.Result.(string)
+	e.Views[viewID] = NewView(viewID, e, buf)
+	e.curViewID = viewID
+
+	go e.handleRequests()
 
 	// editor loop
 	for {
-		e.screen.Clear()
-		if e.CurView() != nil {
-			e.CurView().Draw()
+		curView, err := e.CurView()
+		if err != nil {
+			log.Printf("can't find view: %s", err)
 		}
+		e.screen.Clear()
+		curView.Draw()
 		e.screen.Show()
 
 		var event tcell.Event

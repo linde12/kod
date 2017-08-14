@@ -7,6 +7,7 @@ import (
 type View struct {
 	*Buffer
 	Editor *Editor
+	ViewID string
 	Width  int
 	Height int
 
@@ -14,12 +15,13 @@ type View struct {
 	Topline int
 }
 
-func NewView(e *Editor, buf *Buffer) *View {
+func NewView(viewID string, e *Editor, buf *Buffer) *View {
 	// fullscreen view
 	w, h := e.screen.Size()
 	return &View{
 		Buffer:  buf,
 		Editor:  e,
+		ViewID:  viewID,
 		Width:   w,
 		Height:  h,
 		Topline: 0,
@@ -27,6 +29,10 @@ func NewView(e *Editor, buf *Buffer) *View {
 }
 
 func (v *View) Draw() {
+	if len(v.lines) == 0 {
+		return
+	}
+
 	for y, line := range v.lines[v.Topline:] {
 		visualX := 0
 		for _, char := range []rune(string(line.data)) {

@@ -28,17 +28,17 @@ type Message struct {
 // Connection represents the connection to the backend.
 // The underlying protocol doesn't matter as long as it is writeable and readable.
 type Connection struct {
-	rw            io.ReadWriter
-	handleRequest RequestHandler
-	rpcIndex      int
-	pending       map[int]func(*Message)
+	Messages chan *Message
+	rw       io.ReadWriter
+	rpcIndex int
+	pending  map[int]func(*Message)
 }
 
-func NewConnection(rw io.ReadWriter, rh RequestHandler) *Connection {
+func NewConnection(rw io.ReadWriter) *Connection {
 	c := &Connection{
-		rw:            rw,
-		handleRequest: rh,
-		pending:       make(map[int]func(*Message)),
+		Messages: make(chan *Message, 1),
+		rw:       rw,
+		pending:  make(map[int]func(*Message)),
 	}
 
 	go c.recv()
@@ -62,12 +62,12 @@ func (c *Connection) recv() {
 				}
 			} else {
 				// request
-				c.handleRequest(&msg)
+				c.Messages <- &msg
 				// TODO: Handle requests
 			}
 		} else {
 			// notification
-			c.handleRequest(&msg)
+			c.Messages <- &msg
 			// TODO: Handle notifications
 		}
 	}
@@ -77,7 +77,7 @@ func (c *Connection) recv() {
 	}
 }
 
-func (c *Connection) send(method string, params *Params) int {
+func (c *Connection) send(id int, method string, params *Params) int {
 	msg := Message{
 		Id:     c.rpcIndex,
 		Method: method,
@@ -106,7 +106,9 @@ func (c *Connection) Send(method string, params *Params) (*Message, error) {
 }
 
 func (c *Connection) SendAsync(method string, params *Params, callback func(*Message)) int {
-	id := c.send(method, params)
-	c.pending[id] = callback
-	return id
+	c.rpcIndex++
+	c.pending[c.rpcIndex] = callback
+
+	c.send(c.rpcIndex, method, params)
+	return c.rpcIndex
 }
