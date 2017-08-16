@@ -17,15 +17,18 @@ kod aims to be a fast and modern terminal code-editor. It is inspired by both vi
 This is currently more of a proof-of-concept thing to get a basic understanding of how things can be done. Later i might fork micro and work from that, depending on how things go.
 
 # TODO
-* Unmarshal known JSON requests into structs
-* Implement update protocol
-* Read `viewHeight` lines and fill buffer
-* Refactor away unused code(e.g. lineArray, buffer_reader, cursor)
-* Add basic editing functionality
-* Add vertical scrolling
-* Add horizontal scrolling(client-side only?)
-* Tabs
-* Views within tabs
+- [ ] Unmarshal known JSON requests into structs, partially done
+- [x] Implement update protocol
+- [x] Read `viewHeight` lines and fill buffer
+- [x] Refactor away unused code(e.g. lineArray, buffer_reader, cursor)
+- [ ] Restructure and refactor when editor is more complete
+- [x] Add basic editing functionality
+- [ ] Add vertical scrolling
+- [x] Add horizontal scrolling
+- [x] Indentation (local, xi doesn't fully support yet AFAIK)
+- [ ] Tabs
+- [ ] Views within tabs
+- [ ] Fix all TODOs in the code
 
 # License
 MIT
