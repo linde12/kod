@@ -20,7 +20,6 @@ func main() {
 	log.SetOutput(f)
 
 	p := exec.Command("./xi-core")
-	p.Stderr = os.Stderr
 	stdout, _ := p.StdoutPipe()
 	stdin, _ := p.StdinPipe()
 	p.Start()

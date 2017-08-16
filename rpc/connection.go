@@ -13,8 +13,17 @@ const LF = 0xA // Line-feed
 
 type RequestHandler func(*Message)
 
-// Params is the JSON field `params` in the RPC message.
-type Params map[string]interface{}
+// Object represents a JSON object.
+type Object map[string]interface{}
+
+// Array represents a JSON array.
+type Array []interface{}
+
+type Request struct {
+	Method string      `json:"method"`
+	Params interface{} `json:"params"`
+	ViewID string      `json:"view_id,omitempty"`
+}
 
 // incomingMessage is a representation of an incoming RPC message.
 type incomingMessage struct {
@@ -27,9 +36,8 @@ type incomingMessage struct {
 
 // outgoingMessage is a representation of an outgoing RPC message.
 type outgoingMessage struct {
-	Id     int     `json:"id"`
-	Method string  `json:"method"`
-	Params *Params `json:"params"`
+	*Request
+	ID int `json:"id,omitempty"`
 }
 
 // Message is a deserialized message which will be passed to the `Messages` channel.
@@ -93,22 +101,18 @@ func (c *Connection) recv() {
 	}
 }
 
-func (c *Connection) send(id int, method string, params *Params) int {
-	msg := outgoingMessage{
-		Id:     c.rpcIndex,
-		Method: method,
-		Params: params,
-	}
-	b, _ := json.Marshal(&msg)
+// TODO: notify function
+func (c *Connection) send(msg *outgoingMessage) int {
+	b, _ := json.Marshal(msg)
 	log.Printf(">>> %s\n", b)
 	c.rw.Write(b)
 	c.rw.Write([]byte{LF})
 	return c.rpcIndex
 }
 
-func (c *Connection) Send(method string, params *Params) (*Message, error) {
+func (c *Connection) Request(r *Request) (*Message, error) {
 	ch := make(chan *Message, 1)
-	id := c.SendAsync(method, params, func(m *Message) {
+	id := c.RequestAsync(r, func(m *Message) {
 		ch <- m
 	})
 
@@ -121,10 +125,19 @@ func (c *Connection) Send(method string, params *Params) (*Message, error) {
 	}
 }
 
-func (c *Connection) SendAsync(method string, params *Params, callback func(*Message)) int {
+func (c *Connection) RequestAsync(r *Request, callback func(*Message)) int {
 	c.rpcIndex++
 	c.pending[c.rpcIndex] = callback
 
-	c.send(c.rpcIndex, method, params)
+	c.send(&outgoingMessage{
+		ID:      c.rpcIndex,
+		Request: r,
+	})
 	return c.rpcIndex
+}
+
+func (c *Connection) Notify(r *Request) {
+	c.send(&outgoingMessage{
+		Request: r,
+	})
 }

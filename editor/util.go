@@ -24,6 +24,15 @@ func ByteWidth(str string, tabSize int) int {
 	return w
 }
 
+func GetCursorVisualX(x int, line string) int {
+	r := []rune(line)
+	if x > len(r) {
+		x = len(r) - 1
+	}
+
+	return ByteWidth(string(r[:x]), tabSize)
+}
+
 func Count(b []byte) int {
 	return utf8.RuneCountInString(string(b))
 }

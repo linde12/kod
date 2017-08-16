@@ -13,10 +13,6 @@ import (
 
 type Params map[string]interface{}
 
-type Command interface {
-	Apply(e *Editor)
-}
-
 type Editor struct {
 	screen    tcell.Screen
 	Views     map[string]*View
@@ -28,7 +24,7 @@ type Editor struct {
 	// ui events
 	events chan tcell.Event
 	// user events
-	Commands chan Command
+	RedrawEvents chan struct{}
 }
 
 func (e *Editor) CurView() (*View, error) {
@@ -62,7 +58,7 @@ func (e *Editor) handleEvent(ev tcell.Event) {
 		// and pass on buffer-specific keybindings
 		v, err := e.CurView()
 		if err != nil {
-			log.Println("can't find view: %s", err)
+			log.Printf("can't find view: %s", err)
 		}
 
 		v.HandleEvent(ev)
@@ -76,7 +72,7 @@ func NewEditor(rw io.ReadWriter) *Editor {
 
 	// screen event channel
 	e.events = make(chan tcell.Event, 50)
-	e.Commands = make(chan Command, 50)
+	e.RedrawEvents = make(chan struct{}, 50)
 
 	e.Views = make(map[string]*View)
 
@@ -94,6 +90,10 @@ func (e *Editor) ViewByID(viewID string) (*View, error) {
 	}
 }
 
+func (e *Editor) CloseView(v *View) {
+	delete(e.Views, v.ID)
+}
+
 func (e *Editor) handleRequests() {
 	for {
 		msg := <-e.rpc.Messages
@@ -104,6 +104,8 @@ func (e *Editor) handleRequests() {
 
 			if view, err := e.ViewByID(update.ViewID); err == nil {
 				view.ApplyUpdate(msg)
+				// TODO: Better way to signal redraw?
+				e.RedrawEvents <- struct{}{}
 			} else {
 				log.Printf("can't update view: %s", err)
 			}
@@ -127,35 +129,30 @@ func (e *Editor) Start() {
 	}()
 
 	path := os.Args[1]
-	log.Println("Sending...")
-	msg, err := e.rpc.Send("new_view", &rpc.Params{"file_path": path})
-	if err != nil {
-		log.Println(err)
-		return
-	}
-
-	buf := NewBuffer(path)
-	viewID := msg.Value.(string)
-	e.Views[viewID] = NewView(viewID, e, buf)
-	e.curViewID = viewID
+	view, _ := NewView(path, e)
+	e.Views[view.ID] = view
+	e.curViewID = view.ID
 
 	go e.handleRequests()
 
 	// editor loop
 	for {
-		curView, err := e.CurView()
-		if err != nil {
-			log.Printf("can't find view: %s", err)
+		if len(e.Views) != 0 {
+			curView, err := e.CurView()
+			if err != nil {
+				log.Printf("can't find view: %s", err)
+			}
+			e.screen.Clear()
+			curView.Draw()
+			e.screen.Show()
+		} else {
+			quit <- true
 		}
-		e.screen.Clear()
-		curView.Draw()
-		e.screen.Show()
 
 		var event tcell.Event
 		select {
 		case event = <-e.events:
-		case cmd := <-e.Commands:
-			cmd.Apply(e)
+		case <-e.RedrawEvents:
 		case <-quit:
 			e.screen.Fini()
 			log.Println("bye")
