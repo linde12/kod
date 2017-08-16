@@ -86,11 +86,16 @@ func (c *Connection) recv() {
 			}
 		} else {
 			// request
-			if msg.Method == "update" {
+			switch msg.Method {
+			case "update":
 				var update Update
 				json.Unmarshal(msg.Params, &update)
 				c.Messages <- &Message{msg.Method, &update}
-			} else {
+			case "def_style":
+				var defStyle DefineStyle
+				json.Unmarshal(msg.Params, &defStyle)
+				c.Messages <- &Message{msg.Method, &defStyle}
+			default:
 				log.Println("unhandled request: " + msg.Method)
 			}
 		}

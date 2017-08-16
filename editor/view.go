@@ -27,6 +27,8 @@ type View struct {
 	Topline int
 }
 
+var tmpStyle tcell.Style
+
 func NewView(path string, e *Editor) (*View, error) {
 	view := &View{}
 	view.Editor = e
@@ -70,15 +72,17 @@ func (v *View) Draw() {
 	// TODO: Fix choppy scrolling
 	for y, line := range v.lines[v.Topline:] {
 		visualX := 0
-		for _, char := range []rune(line.Text) {
+		for x, char := range []rune(line.Text) {
+			// TODO: Make safe for concurrency w/ mutex
+			style := v.Editor.styleMap[line.StyleIds[x]]
 			if char == '\t' {
 				ts := tabSize - (visualX % tabSize)
 				for i := 0; i < ts; i++ {
-					v.Editor.screen.SetCell(visualX+i, y, v.Editor.defaultStyle, ' ')
+					v.Editor.screen.SetCell(visualX+i, y, style, ' ')
 				}
 				visualX += ts
 			} else {
-				v.Editor.screen.SetCell(visualX, y, v.Editor.defaultStyle, char)
+				v.Editor.screen.SetCell(visualX, y, style, char)
 				visualX++
 			}
 

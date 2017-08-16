@@ -1,27 +1,34 @@
 package editor
 
-import "github.com/gdamore/tcell"
-
 type Line struct {
-	Text    string
-	Cursors []int
-	styles  map[int]tcell.Color
+	Text     string
+	Cursors  []int
+	Styles   []int
+	StyleIds map[int]int
 }
 
 func NewLine(text string, cursors []int, styles []int) *Line {
 	line := &Line{}
 	line.Text = text
 	line.Cursors = cursors
+	line.Styles = make([]int, 0, 10)
+	line.StyleIds = make(map[int]int)
+	line.SetStyles(styles)
 	return line
 }
 
 // TODO: Implement syntax highlight
-//func (l *Line) SetStyles(styles []int) {
-//for i := 0; i < len(styles); i+=3 {
-//start := offset + styles[i]
-//end := start + styles[i+1]
-//styleId := styles[i+2]
+func (l *Line) SetStyles(styles []int) {
+	offset := 0
+	for i := 0; i < len(styles); i += 3 {
+		start := offset + styles[i]
+		end := start + styles[i+1]
+		styleId := styles[i+2]
 
-//style := &tcell.Style{}
-//}
-//}
+		for i := start; i < end; i++ {
+			l.StyleIds[i] = styleId
+		}
+
+		offset = end
+	}
+}

@@ -1,7 +1,6 @@
 package editor
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -19,7 +18,7 @@ type Editor struct {
 	curViewID string
 	rpc       *rpc.Connection
 
-	defaultStyle tcell.Style
+	styleMap StyleMap
 
 	// ui events
 	events chan tcell.Event
@@ -27,8 +26,8 @@ type Editor struct {
 	RedrawEvents chan struct{}
 }
 
-func (e *Editor) CurView() (*View, error) {
-	return e.ViewByID(e.curViewID)
+func (e *Editor) CurView() *View {
+	return e.Views[e.curViewID]
 }
 
 func (e *Editor) initScreen() {
@@ -45,23 +44,13 @@ func (e *Editor) initScreen() {
 		os.Exit(1)
 	}
 
-	e.screen.SetStyle(e.defaultStyle)
-
 	e.screen.Clear()
 }
 
 func (e *Editor) handleEvent(ev tcell.Event) {
 	switch ev.(type) {
 	case *tcell.EventKey:
-		// TODO: Check if normal mode, if so check for
-		// "global" keybindings which aren't bound to the buffer
-		// and pass on buffer-specific keybindings
-		v, err := e.CurView()
-		if err != nil {
-			log.Printf("can't find view: %s", err)
-		}
-
-		v.HandleEvent(ev)
+		e.CurView().HandleEvent(ev)
 	}
 }
 
@@ -74,20 +63,12 @@ func NewEditor(rw io.ReadWriter) *Editor {
 	e.events = make(chan tcell.Event, 50)
 	e.RedrawEvents = make(chan struct{}, 50)
 
+	e.styleMap = NewStyleMap()
 	e.Views = make(map[string]*View)
 
 	e.rpc = rpc.NewConnection(rw)
 
 	return e
-}
-
-func (e *Editor) ViewByID(viewID string) (*View, error) {
-	view, ok := e.Views[viewID]
-	if ok {
-		return view, nil
-	} else {
-		return nil, errors.New("view not found:" + viewID)
-	}
 }
 
 func (e *Editor) CloseView(v *View) {
@@ -101,15 +82,14 @@ func (e *Editor) handleRequests() {
 		switch msg.Value.(type) {
 		case *rpc.Update:
 			update := msg.Value.(*rpc.Update)
-
-			if view, err := e.ViewByID(update.ViewID); err == nil {
-				view.ApplyUpdate(msg)
-				// TODO: Better way to signal redraw?
-				e.RedrawEvents <- struct{}{}
-			} else {
-				log.Printf("can't update view: %s", err)
-			}
+			view := e.Views[update.ViewID]
+			view.ApplyUpdate(msg.Value.(*rpc.Update))
+		case *rpc.DefineStyle:
+			e.styleMap.DefineStyle(msg.Value.(*rpc.DefineStyle))
 		}
+
+		// TODO: Better way to signal redraw?
+		e.RedrawEvents <- struct{}{}
 	}
 }
 
@@ -138,10 +118,7 @@ func (e *Editor) Start() {
 	// editor loop
 	for {
 		if len(e.Views) != 0 {
-			curView, err := e.CurView()
-			if err != nil {
-				log.Printf("can't find view: %s", err)
-			}
+			curView := e.CurView()
 			e.screen.Clear()
 			curView.Draw()
 			e.screen.Show()
