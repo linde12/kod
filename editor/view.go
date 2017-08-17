@@ -109,27 +109,46 @@ func (v *View) HandleEvent(ev tcell.Event) {
 		if e.Key() == tcell.KeyRune {
 			v.Insert(string(e.Rune()))
 		} else {
-			switch e.Key() {
-			case tcell.KeyBackspace2, tcell.KeyBackspace:
-				v.DeleteBackward()
-			case tcell.KeyTAB:
-				// TODO: Use v.Tab() when it's ready
-				v.Insert("\t")
-			case tcell.KeyEnter:
-				v.Newline()
-			case tcell.KeyLeft:
-				v.MoveLeft()
-			case tcell.KeyUp:
-				v.MoveUp()
-			case tcell.KeyRight:
-				v.MoveRight()
-			case tcell.KeyDown:
-				v.MoveDown()
-			case tcell.KeyCtrlQ:
-				v.Editor.CloseView(v)
-			case tcell.KeyCtrlS:
-				v.Save()
+			if e.Modifiers()&tcell.ModCtrl == 0 {
+				switch e.Key() {
+				case tcell.KeyBackspace2, tcell.KeyBackspace:
+					v.DeleteBackward()
+				case tcell.KeyTAB:
+					// TODO: Use v.Tab() when it's ready
+					v.Insert("\t")
+				case tcell.KeyEnter:
+					v.Newline()
+				case tcell.KeyLeft:
+					v.MoveLeft()
+				case tcell.KeyUp:
+					v.MoveUp()
+				case tcell.KeyRight:
+					v.MoveRight()
+				case tcell.KeyDown:
+					v.MoveDown()
+				case tcell.KeyCtrlQ:
+					v.Editor.CloseView(v)
+				case tcell.KeyCtrlS:
+					v.Save()
+				case tcell.KeyDelete:
+					v.DeleteForward()
+				case tcell.KeyCtrlU:
+					v.Undo()
+				case tcell.KeyCtrlR:
+					v.Redo()
+				case tcell.KeyCtrlRightSq:
+					v.Undo()
+				}
+			} else {
+				// Ctrl
+				switch e.Key() {
+				case tcell.KeyLeft:
+					v.MoveWordLeft()
+				case tcell.KeyRight:
+					v.MoveWordRight()
+				}
 			}
+
 		}
 	}
 }

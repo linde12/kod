@@ -38,8 +38,28 @@ func (ih *InputHandler) MoveDown() {
 	ih.edit(rpc.Object{"method": "move_down"})
 }
 
+func (ih *InputHandler) MoveWordLeft() {
+	ih.edit(rpc.Object{"method": "move_word_left"})
+}
+
+func (ih *InputHandler) MoveWordRight() {
+	ih.edit(rpc.Object{"method": "move_word_right"})
+}
+
 func (ih *InputHandler) DeleteBackward() {
 	ih.edit(rpc.Object{"method": "delete_backward"})
+}
+
+func (ih *InputHandler) DeleteForward() {
+	ih.edit(rpc.Object{"method": "delete_forward"})
+}
+
+func (ih *InputHandler) Undo() {
+	ih.edit(rpc.Object{"method": "undo"})
+}
+
+func (ih *InputHandler) Redo() {
+	ih.edit(rpc.Object{"method": "redo"})
 }
 
 func (ih *InputHandler) Tab() {
