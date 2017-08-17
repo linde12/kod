@@ -106,10 +106,12 @@ func (v *View) Draw() {
 func (v *View) HandleEvent(ev tcell.Event) {
 	switch e := ev.(type) {
 	case *tcell.EventKey:
-		if e.Key() == tcell.KeyRune {
+		ctrl := e.Modifiers()&tcell.ModCtrl != 0
+
+		if e.Key() == tcell.KeyRune && !ctrl {
 			v.Insert(string(e.Rune()))
 		} else {
-			if e.Modifiers()&tcell.ModCtrl == 0 {
+			if !ctrl {
 				switch e.Key() {
 				case tcell.KeyBackspace2, tcell.KeyBackspace:
 					v.DeleteBackward()
@@ -126,18 +128,8 @@ func (v *View) HandleEvent(ev tcell.Event) {
 					v.MoveRight()
 				case tcell.KeyDown:
 					v.MoveDown()
-				case tcell.KeyCtrlQ:
-					v.Editor.CloseView(v)
-				case tcell.KeyCtrlS:
-					v.Save()
 				case tcell.KeyDelete:
 					v.DeleteForward()
-				case tcell.KeyCtrlU:
-					v.Undo()
-				case tcell.KeyCtrlR:
-					v.Redo()
-				case tcell.KeyCtrlRightSq:
-					v.Undo()
 				}
 			} else {
 				// Ctrl
@@ -146,9 +138,16 @@ func (v *View) HandleEvent(ev tcell.Event) {
 					v.MoveWordLeft()
 				case tcell.KeyRight:
 					v.MoveWordRight()
+				case tcell.KeyCtrlQ:
+					v.Editor.CloseView(v)
+				case tcell.KeyCtrlS:
+					v.Save()
+				case tcell.KeyCtrlU:
+					v.Undo()
+				case tcell.KeyCtrlR:
+					v.Redo()
 				}
 			}
-
 		}
 	}
 }
