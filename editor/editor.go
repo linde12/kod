@@ -18,7 +18,7 @@ type Editor struct {
 	curViewID string
 	rpc       *rpc.Connection
 
-	styleMap StyleMap
+	styleMap *StyleMap
 
 	// ui events
 	events chan tcell.Event
@@ -68,6 +68,14 @@ func NewEditor(rw io.ReadWriter) *Editor {
 
 	e.rpc = rpc.NewConnection(rw)
 
+	// Set theme, this might be removed when xi-editor has a config file
+	e.rpc.Notify(&rpc.Request{
+		Method: "set_theme",
+		// TODO: Ability to change this would be nice...
+		// Try "InspiredGitHub" or "Solarized (dark)"
+		Params: rpc.Object{"theme_name": "base16-eighties.dark"},
+	})
+
 	return e
 }
 
@@ -86,6 +94,19 @@ func (e *Editor) handleRequests() {
 			view.ApplyUpdate(msg.Value.(*rpc.Update))
 		case *rpc.DefineStyle:
 			e.styleMap.DefineStyle(msg.Value.(*rpc.DefineStyle))
+			e.screen.SetStyle(defaultStyle)
+		case *rpc.ThemeChanged:
+			themeChanged := msg.Value.(*rpc.ThemeChanged)
+			theme := themeChanged.Theme
+
+			bg := tcell.NewRGBColor(theme.Bg.ToRGB())
+			defaultStyle = defaultStyle.Background(bg)
+			fg := tcell.NewRGBColor(theme.Fg.ToRGB())
+			defaultStyle = defaultStyle.Foreground(fg)
+
+			e.screen.SetStyle(defaultStyle)
+
+			log.Printf("Theme:%v", theme)
 		}
 
 		// TODO: Better way to signal redraw?

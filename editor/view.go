@@ -73,16 +73,23 @@ func (v *View) Draw() {
 	for y, line := range v.lines[v.Topline:] {
 		visualX := 0
 		for x, char := range []rune(line.Text) {
-			// TODO: Make safe for concurrency w/ mutex
-			style := v.Editor.styleMap[line.StyleIds[x]]
+			// TODO: Do this somewhere else
+			var style tcell.Style = defaultStyle
+			// TODO: Reserved??
+			if line.StyleIds[x] >= 2 {
+				fg, _, _ := v.Editor.styleMap.Get(line.StyleIds[x]).Decompose()
+				style = defaultStyle.Foreground(fg)
+			}
+
 			if char == '\t' {
 				ts := tabSize - (visualX % tabSize)
 				for i := 0; i < ts; i++ {
-					v.Editor.screen.SetCell(visualX+i, y, style, ' ')
+					v.Editor.screen.SetContent(visualX+i, y, ' ', nil, style)
 				}
 				visualX += ts
-			} else {
-				v.Editor.screen.SetCell(visualX, y, style, char)
+			} else if char != '\n' {
+				// TODO: Trim newline in a better way?
+				v.Editor.screen.SetContent(visualX, y, char, nil, style)
 				visualX++
 			}
 

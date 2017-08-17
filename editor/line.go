@@ -25,8 +25,8 @@ func (l *Line) SetStyles(styles []int) {
 		end := start + styles[i+1]
 		styleId := styles[i+2]
 
-		for i := start; i < end; i++ {
-			l.StyleIds[i] = styleId
+		for j := start; j <= end; j++ {
+			l.StyleIds[j] = styleId
 		}
 
 		offset = end

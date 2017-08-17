@@ -95,6 +95,10 @@ func (c *Connection) recv() {
 				var defStyle DefineStyle
 				json.Unmarshal(msg.Params, &defStyle)
 				c.Messages <- &Message{msg.Method, &defStyle}
+			case "theme_changed":
+				var themeChanged ThemeChanged
+				json.Unmarshal(msg.Params, &themeChanged)
+				c.Messages <- &Message{msg.Method, &themeChanged}
 			default:
 				log.Println("unhandled request: " + msg.Method)
 			}

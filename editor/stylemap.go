@@ -2,6 +2,7 @@ package editor
 
 import (
 	"log"
+	"sync"
 
 	"github.com/gdamore/tcell"
 	"github.com/linde12/kod/rpc"
@@ -9,25 +10,45 @@ import (
 
 var defaultStyle tcell.Style
 
-type StyleMap map[int]tcell.Style
-
-func NewStyleMap() StyleMap {
-	defaultStyle = defaultStyle.Background(tcell.ColorBrown)
-	return make(StyleMap)
+type StyleMap struct {
+	sync.Mutex
+	values map[int]tcell.Style
 }
 
-func (sm StyleMap) DefineStyle(defstyle *rpc.DefineStyle) {
+func (m *StyleMap) Get(key int) tcell.Style {
+	m.Lock()
+	defer m.Unlock()
+	return m.values[key]
+}
+
+func (m *StyleMap) Set(key int, value tcell.Style) {
+	m.Lock()
+	defer m.Unlock()
+	m.values[key] = value
+}
+
+func NewStyleMap() *StyleMap {
+	// TODO: Move this somewhere else
+	return &StyleMap{
+		values: make(map[int]tcell.Style),
+	}
+}
+
+func (m *StyleMap) DefineStyle(defstyle *rpc.DefineStyle) {
 	var style tcell.Style
-	log.Printf("color 0x%x", defstyle.FgColor.ToRGB())
 
 	// TODO Make rpc.DefineStyle a map so we can see if FgColor exists or not
 	if defstyle.FgColor != 0 {
-		style = defaultStyle.Foreground(tcell.Color(defstyle.FgColor.ToRGB()))
+		r, g, b := defstyle.FgColor.ToRGB()
+		fg := tcell.NewRGBColor(r, g, b)
+		log.Printf("fg: %d, %d, %d", r, g, b)
+		style = defaultStyle.Foreground(fg)
 	}
 
 	if defstyle.BgColor != 0 {
-		style = defaultStyle.Background(tcell.Color(defstyle.BgColor.ToRGB()))
+		bg := tcell.NewRGBColor(defstyle.BgColor.ToRGB())
+		style = defaultStyle.Background(bg)
 	}
 
-	sm[defstyle.ID] = style
+	m.Set(defstyle.ID, style)
 }
