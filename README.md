@@ -28,9 +28,15 @@ kod aims to be a fast and modern terminal code-editor. It is inspired by both vi
 - [ ] Tabs
 - [ ] Views within tabs
 - [ ] Fix all TODOs in the code
+- [ ] Respect alpha value in ARGB
+- [ ] Fix mutexes on shared memory
+- [ ] Cleanup view and inputhandler
+- [ ] Find(search) in file
+- [ ] Support multiple cursors
+- [ ] Add tests
 - [ ] Go plugin
-- [ ] Make the editor stable enough to use as a daily driver
 - [ ] ??? I probably missed something, feel free to add a PR
+- [ ] Make the editor stable enough to use as a daily driver
 
 # License
 MIT
