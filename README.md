@@ -2,6 +2,8 @@
 
 [![GoDoc](https://godoc.org/github.com/linde12/kod/cmd?status.svg)](https://godoc.org/github.com/linde12/kod)
 
+![kod screenshot](/.github/scrot.png?raw=true)
+
 kod aims to be a fast and modern terminal code-editor. It is inspired by both vim & micro. It's built using xi-editor as backend.
 
 # Goals:
