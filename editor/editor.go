@@ -1,19 +1,26 @@
 package editor
 
 import (
-	"fmt"
 	"io"
 	"log"
 	"os"
 
 	"github.com/gdamore/tcell"
+	"github.com/gdamore/tcell/views"
+	"github.com/linde12/kod/app"
 	"github.com/linde12/kod/rpc"
 )
 
 type Params map[string]interface{}
 
 type Editor struct {
-	screen    tcell.Screen
+	views.Panel
+
+	topbar *views.SimpleStyledTextBar
+	status *views.SimpleStyledTextBar
+
+	app *app.Application
+
 	Views     map[string]*View
 	curViewID string
 	rpc       *rpc.Connection
@@ -30,32 +37,21 @@ func (e *Editor) CurView() *View {
 	return e.Views[e.curViewID]
 }
 
-func (e *Editor) initScreen() {
-	var err error
-
-	e.screen, err = tcell.NewScreen()
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-
-	if err = e.screen.Init(); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-
-	e.screen.Clear()
-}
-
-func (e *Editor) handleEvent(ev tcell.Event) {
-	switch ev.(type) {
+func (e *Editor) HandleEvent(ev tcell.Event) bool {
+	switch kev := ev.(type) {
 	case *tcell.EventKey:
-		e.CurView().HandleEvent(ev)
+		if kev.Key() == tcell.KeyCtrlQ {
+			e.app.Quit()
+			return true
+		}
+		return e.CurView().HandleEvent(ev)
 	}
+	return e.Panel.HandleEvent(ev)
 }
 
-func NewEditor(rw io.ReadWriter) *Editor {
+func NewEditor(rw io.ReadWriter, app *app.Application) *Editor {
 	e := &Editor{}
+	e.app = app
 
 	tcell.SetEncodingFallback(tcell.EncodingFallbackASCII)
 
@@ -94,7 +90,7 @@ func (e *Editor) handleRequests() {
 			view.ApplyUpdate(msg.Value.(*rpc.Update))
 		case *rpc.DefineStyle:
 			e.styleMap.DefineStyle(msg.Value.(*rpc.DefineStyle))
-			e.screen.SetStyle(defaultStyle)
+			e.SetStyle(defaultStyle)
 		case *rpc.ThemeChanged:
 			themeChanged := msg.Value.(*rpc.ThemeChanged)
 			theme := themeChanged.Theme
@@ -104,78 +100,33 @@ func (e *Editor) handleRequests() {
 			fg := tcell.NewRGBColor(theme.Fg.ToRGB())
 			defaultStyle = defaultStyle.Foreground(fg)
 
-			e.screen.SetStyle(defaultStyle)
+			e.SetStyle(defaultStyle)
 
 			log.Printf("Theme:%v", theme)
 		}
 
-		// TODO: Better way to signal redraw?
-		e.RedrawEvents <- struct{}{}
+		v := e.CurView()
+		// TODO: Research if this is actually needed
+		v.PostEventWidgetContent(v)
+		e.app.Update()
 	}
 }
 
 func (e *Editor) Start() {
-	e.initScreen()
-	defer e.screen.Fini()
-
-	quit := make(chan bool, 1)
-
-	go func() {
-		for {
-			if e.screen != nil {
-				// feed events into channel
-				e.events <- e.screen.PollEvent()
-			}
-		}
-	}()
-
 	path := os.Args[1]
 	view, _ := NewView(path, e)
 	e.Views[view.ID] = view
 	e.curViewID = view.ID
 
+	e.topbar = views.NewSimpleStyledTextBar()
+	e.topbar.SetCenter("kod")
+
+	e.status = views.NewSimpleStyledTextBar()
+	e.status.SetLeft(e.CurView().FilePath)
+
+	e.Panel.SetTitle(e.topbar)
+	e.Panel.SetContent(view)
+	e.Panel.SetStatus(e.status)
+
 	go e.handleRequests()
-
-	// editor loop
-	for {
-		if len(e.Views) != 0 {
-			curView := e.CurView()
-			e.screen.Clear()
-			curView.Draw()
-			e.screen.Show()
-		} else {
-			quit <- true
-		}
-
-		var event tcell.Event
-		select {
-		case event = <-e.events:
-		case <-e.RedrawEvents:
-		case <-quit:
-			e.screen.Fini()
-			log.Println("bye")
-			os.Exit(0)
-		}
-
-		for event != nil {
-			switch ev := event.(type) {
-			case *tcell.EventKey:
-				switch ev.Key() {
-				case tcell.KeyF1:
-					close(quit)
-				}
-			case *tcell.EventResize:
-				e.screen.Sync()
-			}
-
-			e.handleEvent(event)
-
-			// continue handling events
-			select {
-			case event = <-e.events:
-			default:
-				event = nil
-			}
-		}
-	}
 }
