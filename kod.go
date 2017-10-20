@@ -7,9 +7,8 @@ import (
 	"os"
 	"os/exec"
 
-	"github.com/gdamore/tcell"
-	"github.com/linde12/kod/app"
 	"github.com/linde12/kod/editor"
+	"github.com/linde12/kod/rpc"
 )
 
 type readwriter struct {
@@ -28,18 +27,9 @@ func main() {
 	p.Start()
 
 	rw := readwriter{stdout, stdin}
-
-	// TODO: Handle error
-	screen, _ := tcell.NewScreen()
-
-	app := app.NewApplication(screen)
-
-	e := editor.NewEditor(rw, app)
+	xi := rpc.NewConnection(rw)
+	e := editor.NewEditor(xi)
 	e.Start()
 
-	// TODO: Handle error
-	app.SetRootWidget(e)
-	if err := app.Run(); err != nil {
-		fmt.Fprintf(os.Stderr, "err: %v\n", err)
-	}
+	fmt.Println("\nInterrupted.")
 }

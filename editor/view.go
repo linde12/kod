@@ -1,6 +1,8 @@
 package editor
 
 import (
+	"os"
+
 	"github.com/gdamore/tcell"
 	"github.com/gdamore/tcell/views"
 	"github.com/linde12/kod/rpc"
@@ -16,29 +18,33 @@ type requestLines struct {
 }
 
 type View struct {
-	views.View
-	views.WidgetWatchers
-
+	views.BoxLayout
 	*LineCache
 	*InputHandler
-	ID     string
-	Editor *Editor
-	ViewID string
-	Width  int
-	Height int
 
-	// Topmost line in the text buffer, used for vertical scrolling
-	Topline int
+	TextView   *views.CellView
+	GutterView *views.CellView
+
+	ID       string
+	ViewID   string
+	FilePath string
+	Width    int
+	Height   int
 }
 
 var tmpStyle tcell.Style
 
-func NewView(path string, e *Editor) (*View, error) {
+func NewView(path string, xi *rpc.Connection) (*View, error) {
 	view := &View{}
-	view.Editor = e
+	view.FilePath = path
 	view.LineCache = NewLineCache()
+	view.TextView = views.NewCellView()
+	view.TextView.SetModel(&TextModel{lc: view.LineCache})
 
-	msg, err := e.rpc.Request(&rpc.Request{
+	view.SetOrientation(views.Horizontal)
+	view.AddWidget(view.TextView, 1)
+
+	msg, err := xi.Request(&rpc.Request{
 		Method: "new_view",
 		Params: &rpc.Object{"file_path": path},
 	})
@@ -47,53 +53,13 @@ func NewView(path string, e *Editor) (*View, error) {
 	}
 
 	view.ID = msg.Value.(string)
-	view.InputHandler = &InputHandler{view.ID, path, e.rpc}
+	view.InputHandler = &InputHandler{ViewID: view.ID, xi: xi}
 
 	return view, nil
 }
 
-func (v *View) Draw() {
-	if len(v.lines) == 0 {
-		return
-	}
-
-	// TODO: Line numbers
-	// TODO: Fix choppy scrolling
-	for y, line := range v.lines {
-		visualX := 0
-		for x, char := range []rune(line.Text) {
-			// TODO: Do this somewhere else
-			var style tcell.Style = defaultStyle
-			// TODO: Reserved??
-			if line.StyleIds[x] >= 2 {
-				fg, _, _ := v.Editor.styleMap.Get(line.StyleIds[x]).Decompose()
-				style = defaultStyle.Foreground(fg)
-			}
-
-			if char == '\t' {
-				ts := tabSize - (visualX % tabSize)
-				for i := 0; i < ts; i++ {
-					v.SetContent(visualX+i, y, ' ', nil, style)
-				}
-				visualX += ts
-			} else if char != '\n' {
-				// TODO: Trim newline in a better way?
-				v.SetContent(visualX, y, char, nil, style)
-				visualX++
-			}
-
-			if len(line.Cursors) != 0 {
-				// TODO: Verify if xi-core will take care of tabs for us
-				cX := GetCursorVisualX(line.Cursors[0], line.Text)
-				// TODO: Multiple cursor support
-				v.SetContent(cX, y, char, nil, style.Reverse(true))
-				//v.ShowCursor(cX, y)
-			}
-		}
-	}
-}
-
 func (v *View) HandleEvent(ev tcell.Event) bool {
+
 	switch e := ev.(type) {
 	case *tcell.EventKey:
 		ctrl := e.Modifiers()&tcell.ModCtrl != 0
@@ -129,9 +95,9 @@ func (v *View) HandleEvent(ev tcell.Event) bool {
 				case tcell.KeyRight:
 					v.MoveWordRight()
 				case tcell.KeyCtrlQ:
-					v.Editor.CloseView(v)
+					os.Exit(0)
 				case tcell.KeyCtrlS:
-					v.Save()
+					v.Save(v.FilePath)
 				case tcell.KeyCtrlU:
 					v.Undo()
 				case tcell.KeyCtrlR:
@@ -141,22 +107,4 @@ func (v *View) HandleEvent(ev tcell.Event) bool {
 		}
 	}
 	return true
-}
-
-func (v *View) Resize() {
-	v.Width, v.Height = v.Size()
-	// Set scroll window size
-	v.Editor.rpc.Notify(&rpc.Request{
-		Method: "edit",
-		Params: &rpc.Object{
-			"method":  "scroll",
-			"params":  &rpc.Array{0, v.Height - 2},
-			"view_id": v.ID,
-		},
-	})
-	v.PostEventWidgetResize(v)
-}
-
-func (v *View) SetView(view views.View) {
-	v.View = view
 }

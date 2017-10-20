@@ -4,9 +4,7 @@ import "github.com/linde12/kod/rpc"
 
 type InputHandler struct {
 	ViewID string
-	// TODO: Maybe just keep this stuff on View struct
-	FilePath string
-	c        *rpc.Connection
+	xi     *rpc.Connection
 }
 
 func (ih *InputHandler) edit(params rpc.Object) {
@@ -15,7 +13,7 @@ func (ih *InputHandler) edit(params rpc.Object) {
 		params["params"] = &rpc.Object{}
 	}
 
-	ih.c.Notify(&rpc.Request{
+	ih.xi.Notify(&rpc.Request{
 		Method: "edit",
 		ViewID: ih.ViewID,
 		Params: params,
@@ -71,19 +69,19 @@ func (ih *InputHandler) Newline() {
 }
 
 func (ih *InputHandler) Insert(char string) {
-	ih.c.Notify(&rpc.Request{
+	ih.xi.Notify(&rpc.Request{
 		Method: "edit",
 		ViewID: ih.ViewID,
 		Params: rpc.Object{"method": "insert", "params": rpc.Object{"chars": char}, "view_id": ih.ViewID},
 	})
 }
 
-func (ih *InputHandler) Save() {
-	ih.c.Notify(&rpc.Request{
+func (ih *InputHandler) Save(fp string) {
+	ih.xi.Notify(&rpc.Request{
 		Method: "save",
 		Params: rpc.Object{
 			"view_id":   ih.ViewID,
-			"file_path": ih.FilePath,
+			"file_path": fp,
 		},
 	})
 }
