@@ -2,7 +2,6 @@ package editor
 
 import (
 	"github.com/gdamore/tcell"
-	"github.com/gdamore/tcell/views"
 	"github.com/linde12/kod/rpc"
 )
 
@@ -16,9 +15,6 @@ type requestLines struct {
 }
 
 type View struct {
-	views.View
-	views.WidgetWatchers
-
 	*LineCache
 	*InputHandler
 	ID     string
@@ -38,6 +34,11 @@ func NewView(path string, e *Editor) (*View, error) {
 	view.Editor = e
 	view.LineCache = NewLineCache()
 
+	// fullscreen view
+	w, h := e.screen.Size()
+	view.Width = w
+	view.Height = h
+
 	msg, err := e.rpc.Request(&rpc.Request{
 		Method: "new_view",
 		Params: &rpc.Object{"file_path": path},
@@ -49,6 +50,16 @@ func NewView(path string, e *Editor) (*View, error) {
 	view.ID = msg.Value.(string)
 	view.InputHandler = &InputHandler{view.ID, path, e.rpc}
 
+	// Set scroll window size
+	e.rpc.Notify(&rpc.Request{
+		Method: "edit",
+		Params: &rpc.Object{
+			"method":  "scroll",
+			"params":  &rpc.Array{0, view.Height - 2},
+			"view_id": view.ID,
+		},
+	})
+
 	return view, nil
 }
 
@@ -59,7 +70,7 @@ func (v *View) Draw() {
 
 	// TODO: Line numbers
 	// TODO: Fix choppy scrolling
-	for y, line := range v.lines {
+	for y, line := range v.lines[v.Topline:] {
 		visualX := 0
 		for x, char := range []rune(line.Text) {
 			// TODO: Do this somewhere else
@@ -73,12 +84,12 @@ func (v *View) Draw() {
 			if char == '\t' {
 				ts := tabSize - (visualX % tabSize)
 				for i := 0; i < ts; i++ {
-					v.SetContent(visualX+i, y, ' ', nil, style)
+					v.Editor.screen.SetContent(visualX+i, y, ' ', nil, style)
 				}
 				visualX += ts
 			} else if char != '\n' {
 				// TODO: Trim newline in a better way?
-				v.SetContent(visualX, y, char, nil, style)
+				v.Editor.screen.SetContent(visualX, y, char, nil, style)
 				visualX++
 			}
 
@@ -86,14 +97,13 @@ func (v *View) Draw() {
 				// TODO: Verify if xi-core will take care of tabs for us
 				cX := GetCursorVisualX(line.Cursors[0], line.Text)
 				// TODO: Multiple cursor support
-				v.SetContent(cX, y, char, nil, style.Reverse(true))
-				//v.ShowCursor(cX, y)
+				v.Editor.screen.ShowCursor(cX, y)
 			}
 		}
 	}
 }
 
-func (v *View) HandleEvent(ev tcell.Event) bool {
+func (v *View) HandleEvent(ev tcell.Event) {
 	switch e := ev.(type) {
 	case *tcell.EventKey:
 		ctrl := e.Modifiers()&tcell.ModCtrl != 0
@@ -140,23 +150,4 @@ func (v *View) HandleEvent(ev tcell.Event) bool {
 			}
 		}
 	}
-	return true
-}
-
-func (v *View) Resize() {
-	v.Width, v.Height = v.Size()
-	// Set scroll window size
-	v.Editor.rpc.Notify(&rpc.Request{
-		Method: "edit",
-		Params: &rpc.Object{
-			"method":  "scroll",
-			"params":  &rpc.Array{0, v.Height - 2},
-			"view_id": v.ID,
-		},
-	})
-	v.PostEventWidgetResize(v)
-}
-
-func (v *View) SetView(view views.View) {
-	v.View = view
 }
