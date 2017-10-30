@@ -10,20 +10,17 @@ import (
 	"github.com/linde12/kod/rpc"
 )
 
-type Params map[string]interface{}
-
 type Editor struct {
 	screen    tcell.Screen
 	Views     map[string]*View
 	curViewID string
-	rpc       *rpc.Connection
-
-	styleMap *StyleMap
+	xi        *rpc.Connection
 
 	// ui events
 	events chan tcell.Event
 	// user events
-	RedrawEvents chan struct{}
+	redraws chan struct{}
+	updates chan func()
 }
 
 func (e *Editor) CurView() *View {
@@ -61,18 +58,17 @@ func NewEditor(rw io.ReadWriter) *Editor {
 
 	// screen event channel
 	e.events = make(chan tcell.Event, 50)
-	e.RedrawEvents = make(chan struct{}, 50)
+	e.redraws = make(chan struct{}, 50)
+	e.updates = make(chan func(), 1)
 
-	e.styleMap = NewStyleMap()
 	e.Views = make(map[string]*View)
 
-	e.rpc = rpc.NewConnection(rw)
+	e.xi = rpc.NewConnection(rw)
 
 	// Set theme, this might be removed when xi-editor has a config file
-	e.rpc.Notify(&rpc.Request{
+	e.xi.Notify(&rpc.Request{
 		Method: "set_theme",
-		// TODO: Ability to change this would be nice...
-		// Try "InspiredGitHub" or "Solarized (dark)"
+		// TODO: Read from settings?
 		Params: rpc.Object{"theme_name": "base16-eighties.dark"},
 	})
 
@@ -85,32 +81,43 @@ func (e *Editor) CloseView(v *View) {
 
 func (e *Editor) handleRequests() {
 	for {
-		msg := <-e.rpc.Messages
+		msg := <-e.xi.Messages
 
 		switch msg.Value.(type) {
 		case *rpc.Update:
-			update := msg.Value.(*rpc.Update)
-			view := e.Views[update.ViewID]
-			view.ApplyUpdate(msg.Value.(*rpc.Update))
+			e.updates <- func() {
+				update := msg.Value.(*rpc.Update)
+				view := e.Views[update.ViewID]
+				// TODO: Could ApplyUpdate be immutable?
+				// If so we can do all the calculation outside the paint thread
+				view.ApplyUpdate(msg.Value.(*rpc.Update))
+			}
 		case *rpc.DefineStyle:
-			e.styleMap.DefineStyle(msg.Value.(*rpc.DefineStyle))
-			e.screen.SetStyle(defaultStyle)
+			e.updates <- func() {
+				styles.defineStyle(msg.Value.(*rpc.DefineStyle))
+			}
 		case *rpc.ThemeChanged:
-			themeChanged := msg.Value.(*rpc.ThemeChanged)
-			theme := themeChanged.Theme
+			// TODO: Use tcell.Event interface instead
+			e.updates <- func() {
+				themeChanged := msg.Value.(*rpc.ThemeChanged)
+				theme := themeChanged.Theme
 
-			bg := tcell.NewRGBColor(theme.Bg.ToRGB())
-			defaultStyle = defaultStyle.Background(bg)
-			fg := tcell.NewRGBColor(theme.Fg.ToRGB())
-			defaultStyle = defaultStyle.Foreground(fg)
+				bg := tcell.NewRGBColor(theme.Bg.ToRGB())
+				defaultStyle = defaultStyle.Background(bg)
+				fg := tcell.NewRGBColor(theme.Fg.ToRGB())
+				defaultStyle = defaultStyle.Foreground(fg)
 
-			e.screen.SetStyle(defaultStyle)
+				e.screen.SetStyle(defaultStyle)
 
-			log.Printf("Theme:%v", theme)
+				log.Printf("Theme:%v", theme)
+			}
 		}
 
 		// TODO: Better way to signal redraw?
-		e.RedrawEvents <- struct{}{}
+		// TODO: Use tcell.Event interface instead
+		e.updates <- func() {
+			e.redraws <- struct{}{}
+		}
 	}
 }
 
@@ -130,7 +137,9 @@ func (e *Editor) Start() {
 	}()
 
 	path := os.Args[1]
-	view, _ := NewView(path, e)
+	vp := NewViewport(e.screen, 0, 0)
+	vp.FillParent()
+	view, _ := NewView(path, vp, e.xi)
 	e.Views[view.ID] = view
 	e.curViewID = view.ID
 
@@ -150,7 +159,9 @@ func (e *Editor) Start() {
 		var event tcell.Event
 		select {
 		case event = <-e.events:
-		case <-e.RedrawEvents:
+		case update := <-e.updates:
+			update()
+		case <-e.redraws:
 		case <-quit:
 			e.screen.Fini()
 			log.Println("bye")

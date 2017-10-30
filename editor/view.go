@@ -1,6 +1,9 @@
 package editor
 
 import (
+	"os"
+	"strconv"
+
 	"github.com/gdamore/tcell"
 	"github.com/linde12/kod/rpc"
 )
@@ -17,29 +20,36 @@ type requestLines struct {
 type View struct {
 	*LineCache
 	*InputHandler
-	ID     string
-	Editor *Editor
-	ViewID string
-	Width  int
-	Height int
 
-	// Topmost line in the text buffer, used for vertical scrolling
-	Topline int
+	ID     string
+	view   *Viewport
+	gutter *Viewport
+	xi     *rpc.Connection
+	ViewID string
 }
 
 var tmpStyle tcell.Style
 
-func NewView(path string, e *Editor) (*View, error) {
+func ralign(str string, width int) string {
+	diff := width - len(str)
+	res := ""
+	for i := 0; i < diff; i++ {
+		res += " "
+	}
+
+	res += str
+	return res
+}
+
+func NewView(path string, vp *Viewport, xi *rpc.Connection) (*View, error) {
 	view := &View{}
-	view.Editor = e
+	view.view = NewViewport(vp, 3, 0)
+	view.gutter = NewViewport(vp, 0, 0)
+	//view.editview = NewViewport(view.view, 3, 0)
+	view.xi = xi
 	view.LineCache = NewLineCache()
 
-	// fullscreen view
-	w, h := e.screen.Size()
-	view.Width = w
-	view.Height = h
-
-	msg, err := e.rpc.Request(&rpc.Request{
+	msg, err := xi.Request(&rpc.Request{
 		Method: "new_view",
 		Params: &rpc.Object{"file_path": path},
 	})
@@ -48,14 +58,15 @@ func NewView(path string, e *Editor) (*View, error) {
 	}
 
 	view.ID = msg.Value.(string)
-	view.InputHandler = &InputHandler{view.ID, path, e.rpc}
+	view.InputHandler = &InputHandler{view.ID, path, xi}
 
 	// Set scroll window size
-	e.rpc.Notify(&rpc.Request{
+	_, height := vp.Size()
+	xi.Notify(&rpc.Request{
 		Method: "edit",
 		Params: &rpc.Object{
 			"method":  "scroll",
-			"params":  &rpc.Array{0, view.Height - 2},
+			"params":  &rpc.Array{0, height - 2},
 			"view_id": view.ID,
 		},
 	})
@@ -68,28 +79,45 @@ func (v *View) Draw() {
 		return
 	}
 
-	// TODO: Line numbers
-	// TODO: Fix choppy scrolling
-	for y, line := range v.lines[v.Topline:] {
+	// render line numbers
+	// TODO: improve, alot... :-)
+	style := defaultStyle.Foreground(tcell.ColorBlue)
+	lc := v.LineCache
+	tot := lc.invalidBefore + len(v.lines) + lc.invalidAfter
+	width := len(strconv.Itoa(len(v.lines) + v.LineCache.invalidBefore))
+
+	v.gutter.SetWidth(width + 1)
+	v.view.SetOffsetX(width + 2)
+
+	for i := 0; i < tot; i++ {
+		txt := ralign(strconv.Itoa(lc.invalidBefore+i), width)
+		width := len(txt)
+		for x := 0; x < width; x++ {
+			v.gutter.SetContent(1+x, i, rune(txt[x]), nil, style)
+		}
+	}
+
+	// TODO: Line numbers in a separate viewport
+	for y, line := range v.lines {
 		visualX := 0
 		for x, char := range []rune(line.Text) {
 			// TODO: Do this somewhere else
-			var style tcell.Style = defaultStyle
+			var style = defaultStyle
 			// TODO: Reserved??
 			if line.StyleIds[x] >= 2 {
-				fg, _, _ := v.Editor.styleMap.Get(line.StyleIds[x]).Decompose()
-				style = defaultStyle.Foreground(fg)
+				fg, _, _ := styles[line.StyleIds[x]].Decompose()
+				style = style.Foreground(fg)
 			}
 
 			if char == '\t' {
 				ts := tabSize - (visualX % tabSize)
 				for i := 0; i < ts; i++ {
-					v.Editor.screen.SetContent(visualX+i, y, ' ', nil, style)
+					v.view.SetContent(visualX+i, y, ' ', nil, style)
 				}
 				visualX += ts
 			} else if char != '\n' {
 				// TODO: Trim newline in a better way?
-				v.Editor.screen.SetContent(visualX, y, char, nil, style)
+				v.view.SetContent(visualX, y, char, nil, style)
 				visualX++
 			}
 
@@ -97,7 +125,7 @@ func (v *View) Draw() {
 				// TODO: Verify if xi-core will take care of tabs for us
 				cX := GetCursorVisualX(line.Cursors[0], line.Text)
 				// TODO: Multiple cursor support
-				v.Editor.screen.ShowCursor(cX, y)
+				v.view.ShowCursor(cX, y)
 			}
 		}
 	}
@@ -116,8 +144,7 @@ func (v *View) HandleEvent(ev tcell.Event) {
 				case tcell.KeyBackspace2, tcell.KeyBackspace:
 					v.DeleteBackward()
 				case tcell.KeyTAB:
-					// TODO: Use v.Tab() when it's ready
-					v.Insert("\t")
+					v.Tab()
 				case tcell.KeyEnter:
 					v.Newline()
 				case tcell.KeyLeft:
@@ -139,7 +166,8 @@ func (v *View) HandleEvent(ev tcell.Event) {
 				case tcell.KeyRight:
 					v.MoveWordRight()
 				case tcell.KeyCtrlQ:
-					v.Editor.CloseView(v)
+					// TODO: Send CloseView to xi and cleanup tcell
+					os.Exit(0)
 				case tcell.KeyCtrlS:
 					v.Save()
 				case tcell.KeyCtrlU:
