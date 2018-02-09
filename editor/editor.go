@@ -135,6 +135,12 @@ func (e *Editor) Start() {
 			}
 		}
 	}()
+	
+	// Exit gracefully when no filename is provided.
+	if len(os.Args) < 2 {
+		fmt.Fprintf(os.Stderr, "No filename provided. Example: `kod example.txt`\n")
+		os.Exit(1)
+	}
 
 	path := os.Args[1]
 	vp := NewViewport(e.screen, 0, 0)
