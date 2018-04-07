@@ -65,6 +65,11 @@ func NewEditor(rw io.ReadWriter) *Editor {
 
 	e.xi = rpc.NewConnection(rw)
 
+	e.xi.Notify(&rpc.Request{
+		Method: "client_started",
+		Params: rpc.Object{},
+	})
+
 	// Set theme, this might be removed when xi-editor has a config file
 	e.xi.Notify(&rpc.Request{
 		Method: "set_theme",
@@ -135,7 +140,7 @@ func (e *Editor) Start() {
 			}
 		}
 	}()
-	
+
 	// Exit gracefully when no filename is provided.
 	if len(os.Args) < 2 {
 		fmt.Fprintf(os.Stderr, "No filename provided. Example: `kod example.txt`\n")
