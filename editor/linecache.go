@@ -1,8 +1,6 @@
 package editor
 
 import (
-	"math"
-
 	"github.com/linde12/kod/rpc"
 )
 
@@ -50,28 +48,62 @@ func (lc *LineCache) ApplyUpdate(update *rpc.Update) {
 	for _, op := range update.Update.Ops {
 		switch op.Op {
 		case "copy":
-			// TODO: Respect lc.invalidBefore
-			if index < lc.invalidBefore {
-				invalid := int(math.Min(float64(op.N), float64(lc.invalidBefore-index)))
-				lc.addInvalid(newLines, &newInvalidBefore, &newInvalidAfter, invalid)
-				op.N -= invalid
-				index += invalid
+			if lc.invalidBefore > op.N {
+				lc.invalidBefore -= op.N
+				newInvalidBefore += op.N
+				continue
+			} else if lc.invalidAfter > 0 {
+				op.N -= lc.invalidBefore
+				newInvalidBefore += lc.invalidBefore
+				lc.invalidBefore = 0
 			}
-			for op.N > 0 && index < lc.invalidBefore+len(lc.lines) {
-				newLines = lc.addLine(newLines, &newInvalidBefore, &newInvalidAfter, lc.lines[index-lc.invalidBefore])
-				op.N--
-				index++
+
+			if op.N < len(lc.lines) {
+				firstNLines := append(lc.lines[:0], lc.lines[:op.N]...)
+				lc.lines = lc.lines[op.N:]
+				newLines = append(newLines, firstNLines...) //remove from lc.lines
+				continue
+			} else {
+				//allNLines := append(lc.lines[:0], lc.lines[0:]...)
+				newLines = append(newLines, lc.lines...) //remove from lc.lines
+				lc.lines = make([]*Line, 0, 10)
+				op.N -= len(lc.lines)
 			}
-			lc.addInvalid(newLines, &newInvalidBefore, &newInvalidAfter, op.N)
-			index += op.N
+
+			if lc.invalidAfter >= op.N {
+				lc.invalidAfter -= op.N
+				newInvalidAfter += op.N
+				continue
+			}
+
 		case "skip":
-			index += op.N
+			if lc.invalidBefore > op.N {
+				lc.invalidBefore -= op.N
+				continue
+			} else if lc.invalidBefore > 0 {
+				op.N = lc.invalidBefore
+				lc.invalidBefore = 0
+			}
+
+			if op.N < len(lc.lines) {
+				lc.lines = append(lc.lines[:0], lc.lines[op.N:]...)
+				continue
+			} else {
+				lc.lines = append(lc.lines[:0], lc.lines[len(lc.lines)-1:]...)
+				op.N -= len(lc.lines)
+			}
+
+			if lc.invalidAfter >= op.N {
+				lc.invalidBefore -= op.N
+				continue
+			}
+
 		case "invalidate":
 			lc.addInvalid(newLines, &newInvalidBefore, &newInvalidAfter, op.N)
 		case "ins":
 			for _, line := range op.Lines {
 				newline := NewLine(line.Text, line.Cursor, line.Styles)
-				newLines = lc.addLine(newLines, &newInvalidBefore, &newInvalidAfter, newline)
+				newLines = append(newLines, newline)
 			}
 		case "update":
 			for _, line := range op.Lines {
@@ -82,9 +114,10 @@ func (lc *LineCache) ApplyUpdate(update *rpc.Update) {
 				index++
 			}
 		}
-
-		lc.lines = newLines
-		lc.invalidBefore = newInvalidBefore
-		lc.invalidAfter = newInvalidAfter
 	}
+
+	lc.lines = newLines
+	lc.invalidBefore = newInvalidBefore
+	lc.invalidAfter = newInvalidAfter
 }
+
