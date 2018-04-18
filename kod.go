@@ -7,7 +7,7 @@ import (
 	"os"
 	"os/exec"
 
-	"github.com/linde12/kod/editor"
+	"./editor"
 )
 
 type readwriter struct {
