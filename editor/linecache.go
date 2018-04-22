@@ -47,11 +47,10 @@ func (lc *LineCache) ApplyUpdate(update *rpc.Update) {
 			if op.N < len(lc.lines) {
 				firstNLines := append(lc.lines[:0], lc.lines[:op.N]...)
 				lc.lines = lc.lines[op.N:]
-				newLines = append(newLines, firstNLines...) //remove from lc.lines
+				newLines = append(newLines, firstNLines...)
 				continue
 			} else {
-				//allNLines := append(lc.lines[:0], lc.lines[0:]...)
-				newLines = append(newLines, lc.lines...) //remove from lc.lines
+				newLines = append(newLines, lc.lines...)
 				lc.lines = make([]*Line, 0, 10)
 				op.N -= len(lc.lines)
 			}
