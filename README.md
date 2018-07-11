@@ -16,7 +16,7 @@ kod aims to be a fast and modern terminal code-editor. It is inspired by both vi
 - Maintain a huge platform support (like vim), it will be supported by the major platforms and architectures
 
 # Installation
-kod expects `xi-core` to be set in your `$PATH`. For more information how to build xi-core, please have a look at ![xi-editor's github page](https://github.com/google/xi-editor).
+kod expects `xi-core` to be set in your `$PATH`. For more information how to build xi-core, please have a look at [xi-editor's github page](https://github.com/google/xi-editor).
 
 Once xi-core is available you should be able to build with `go build`.
 
