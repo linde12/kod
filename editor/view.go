@@ -120,13 +120,12 @@ func (v *View) Draw() {
 				v.view.SetContent(visualX, y, char, nil, style)
 				visualX++
 			}
-
-			if len(line.Cursors) != 0 {
-				// TODO: Verify if xi-core will take care of tabs for us
-				cX := GetCursorVisualX(line.Cursors[0], line.Text)
-				// TODO: Multiple cursor support
-				v.view.ShowCursor(cX, y)
-			}
+		}
+		if len(line.Cursors) != 0 {
+			// TODO: Verify if xi-core will take care of tabs for us
+			cX := GetCursorVisualX(line.Cursors[0], line.Text)
+			// TODO: Multiple cursor support
+			v.view.ShowCursor(cX, y)
 		}
 	}
 }
