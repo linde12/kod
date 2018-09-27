@@ -51,7 +51,7 @@ func (e *Editor) handleEvent(ev tcell.Event) {
 	}
 }
 
-func NewEditor(rw io.ReadWriter) *Editor {
+func NewEditor(rw io.ReadWriter, configPath string) *Editor {
 	e := &Editor{}
 
 	tcell.SetEncodingFallback(tcell.EncodingFallbackASCII)
@@ -67,7 +67,9 @@ func NewEditor(rw io.ReadWriter) *Editor {
 
 	e.xi.Notify(&rpc.Request{
 		Method: "client_started",
-		Params: rpc.Object{},
+		Params: rpc.Object{
+			"config_dir": configPath,
+		},
 	})
 
 	// Set theme, this might be removed when xi-editor has a config file

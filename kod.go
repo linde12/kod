@@ -21,6 +21,11 @@ func die(format string, args ...interface{}) {
 }
 
 func main() {
+	configDir := os.Getenv("XI_CONFIG_DIR")
+	if configDir == "" {
+		configDir = os.Getenv("HOME") + "/.config/xi/"
+	}
+
 	path, err := exec.LookPath("xi-core")
 	if err != nil {
 		die("xi-core was not found in your PATH")
@@ -38,6 +43,6 @@ func main() {
 	log.SetOutput(f)
 
 	rw := readwriter{stdout, stdin}
-	e := editor.NewEditor(rw)
+	e := editor.NewEditor(rw, configDir)
 	e.Start()
 }
