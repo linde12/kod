@@ -185,7 +185,7 @@ func (e *Editor) Start() {
 			switch ev := event.(type) {
 			case *tcell.EventKey:
 				switch ev.Key() {
-				case tcell.KeyF1:
+				case tcell.KeyCtrlQ:
 					close(quit)
 				}
 			case *tcell.EventResize:
