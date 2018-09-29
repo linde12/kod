@@ -51,8 +51,8 @@ func (lc *LineCache) ApplyUpdate(update *rpc.Update) {
 				continue
 			} else {
 				newLines = append(newLines, lc.lines...)
-				lc.lines = make([]*Line, 0, 10)
 				op.N -= len(lc.lines)
+				lc.lines = make([]*Line, 0, 10)
 			}
 
 			if lc.invalidAfter >= op.N {
@@ -97,4 +97,3 @@ func (lc *LineCache) ApplyUpdate(update *rpc.Update) {
 	lc.invalidBefore = newInvalidBefore
 	lc.invalidAfter = newInvalidAfter
 }
-
