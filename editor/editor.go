@@ -129,6 +129,12 @@ func (e *Editor) handleRequests() {
 }
 
 func (e *Editor) Start() {
+	// Exit gracefully when no filename is provided.
+	if len(os.Args) < 2 {
+		fmt.Fprintf(os.Stderr, "No filename provided. Example: `kod example.txt`\n")
+		os.Exit(1)
+	}
+
 	e.initScreen()
 	defer e.screen.Fini()
 
@@ -142,12 +148,6 @@ func (e *Editor) Start() {
 			}
 		}
 	}()
-
-	// Exit gracefully when no filename is provided.
-	if len(os.Args) < 2 {
-		fmt.Fprintf(os.Stderr, "No filename provided. Example: `kod example.txt`\n")
-		os.Exit(1)
-	}
 
 	path := os.Args[1]
 	vp := NewViewport(e.screen, 0, 0)
@@ -185,7 +185,7 @@ func (e *Editor) Start() {
 			switch ev := event.(type) {
 			case *tcell.EventKey:
 				switch ev.Key() {
-				case tcell.KeyF1:
+				case tcell.KeyCtrlQ:
 					close(quit)
 				}
 			case *tcell.EventResize:

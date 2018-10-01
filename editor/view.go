@@ -1,7 +1,6 @@
 package editor
 
 import (
-	"os"
 	"strconv"
 
 	"github.com/gdamore/tcell"
@@ -164,9 +163,6 @@ func (v *View) HandleEvent(ev tcell.Event) {
 					v.MoveWordLeft()
 				case tcell.KeyRight:
 					v.MoveWordRight()
-				case tcell.KeyCtrlQ:
-					// TODO: Send CloseView to xi and cleanup tcell
-					os.Exit(0)
 				case tcell.KeyCtrlS:
 					v.Save()
 				case tcell.KeyCtrlU:
