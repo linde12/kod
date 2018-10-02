@@ -118,6 +118,13 @@ func (e *Editor) handleRequests() {
 
 				log.Printf("Theme:%v", theme)
 			}
+		case *rpc.ScrollTo:
+			e.updates <- func() {
+				scrollTo := msg.Value.(*rpc.ScrollTo)
+				e.Views[scrollTo.ViewID].view.MakeVisibleY(scrollTo.Line)
+				e.Views[scrollTo.ViewID].gutter.MakeVisibleY(scrollTo.Line)
+				e.Views[scrollTo.ViewID].view.ShowCursor(scrollTo.Col, scrollTo.Line)
+			}
 		}
 
 		// TODO: Better way to signal redraw?

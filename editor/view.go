@@ -129,6 +129,11 @@ func (v *View) Draw() {
 	}
 }
 
+func (v *View) MakeLineVisible(line int) {
+	v.view.MakeVisibleY(line)
+	v.gutter.MakeVisibleY(line)
+}
+
 func (v *View) HandleEvent(ev tcell.Event) {
 	switch e := ev.(type) {
 	case *tcell.EventKey:

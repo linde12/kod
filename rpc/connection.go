@@ -99,6 +99,10 @@ func (c *Connection) recv() {
 				var themeChanged ThemeChanged
 				json.Unmarshal(msg.Params, &themeChanged)
 				c.Messages <- &Message{msg.Method, &themeChanged}
+			case "scroll_to":
+				var scrollTo ScrollTo
+				json.Unmarshal(msg.Params, &scrollTo)
+				c.Messages <- &Message{msg.Method, &scrollTo}
 			default:
 				log.Println("unhandled request: " + msg.Method)
 			}
