@@ -20,11 +20,13 @@ type View struct {
 	*LineCache
 	*InputHandler
 
-	ID     string
-	view   *Viewport
-	gutter *Viewport
-	xi     *rpc.Connection
-	ViewID string
+	ID        string
+	view      *Viewport
+	gutter    *Viewport
+	xi        *rpc.Connection
+	ViewID    string
+	lineStart int
+	lineEnd   int
 }
 
 var tmpStyle tcell.Style
@@ -126,6 +128,12 @@ func (v *View) Draw() {
 			// TODO: Multiple cursor support
 			v.view.ShowCursor(cX, y)
 		}
+	}
+	lineStart, lineEnd := v.view.GetViewport()
+	if lineStart != v.lineStart || lineEnd != v.lineEnd {
+		v.Scroll(lineStart, lineEnd)
+		v.lineStart = lineStart
+		v.lineEnd = lineEnd
 	}
 }
 

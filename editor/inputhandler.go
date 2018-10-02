@@ -87,3 +87,7 @@ func (ih *InputHandler) Save() {
 		},
 	})
 }
+
+func (ih *InputHandler) Scroll(lineStart, lineEnd int) {
+	ih.edit(rpc.Object{"method": "scroll", "params": rpc.Array{lineStart, lineEnd}})
+}

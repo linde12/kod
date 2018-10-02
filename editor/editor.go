@@ -121,8 +121,7 @@ func (e *Editor) handleRequests() {
 		case *rpc.ScrollTo:
 			e.updates <- func() {
 				scrollTo := msg.Value.(*rpc.ScrollTo)
-				e.Views[scrollTo.ViewID].view.MakeVisibleY(scrollTo.Line)
-				e.Views[scrollTo.ViewID].gutter.MakeVisibleY(scrollTo.Line)
+				e.Views[scrollTo.ViewID].MakeLineVisible(scrollTo.Line)
 				e.Views[scrollTo.ViewID].view.ShowCursor(scrollTo.Col, scrollTo.Line)
 			}
 		}
