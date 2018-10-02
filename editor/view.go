@@ -100,6 +100,7 @@ func (v *View) Draw() {
 
 	// TODO: Line numbers in a separate viewport
 	for y, line := range v.lines {
+		nLine := y + v.invalidBefore
 		visualX := 0
 		for x, char := range []rune(line.Text) {
 			// TODO: Do this somewhere else
@@ -113,12 +114,12 @@ func (v *View) Draw() {
 			if char == '\t' {
 				ts := tabSize - (visualX % tabSize)
 				for i := 0; i < ts; i++ {
-					v.view.SetContent(visualX+i, y, ' ', nil, style)
+					v.view.SetContent(visualX+i, nLine, ' ', nil, style)
 				}
 				visualX += ts
 			} else if char != '\n' {
 				// TODO: Trim newline in a better way?
-				v.view.SetContent(visualX, y, char, nil, style)
+				v.view.SetContent(visualX, nLine, char, nil, style)
 				visualX++
 			}
 		}
@@ -126,7 +127,7 @@ func (v *View) Draw() {
 			// TODO: Verify if xi-core will take care of tabs for us
 			cX := GetCursorVisualX(line.Cursors[0], line.Text)
 			// TODO: Multiple cursor support
-			v.view.ShowCursor(cX, y)
+			v.view.ShowCursor(cX, nLine)
 		}
 	}
 	lineStart, lineEnd := v.view.GetViewport()
