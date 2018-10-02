@@ -1,6 +1,8 @@
 package editor
 
-import "github.com/gdamore/tcell"
+import (
+	"github.com/gdamore/tcell"
+)
 
 type Painter interface {
 	SetContent(x int, y int, ch rune, comb []rune, style tcell.Style)
@@ -12,19 +14,45 @@ type Viewport struct {
 	offx, offy    int
 	width, height int
 	view          Painter
+	viewy         int
+}
+
+func (v *Viewport) GetViewport() (lineStart, lineEnd int) {
+	return v.viewy, v.viewy + v.height
 }
 
 func (v *Viewport) SetContent(x int, y int, ch rune, comb []rune, style tcell.Style) {
-	phyx := v.offx + x
-	phyy := v.offy + y
+	v.view.SetContent(v.offx+x, v.offy+y-v.viewy, ch, comb, style)
+}
 
-	if phyx < v.width && phyy < v.height {
-		v.view.SetContent(v.offx+x, v.offy+y, ch, comb, style)
+func (v *Viewport) MakeVisibleY(y int) {
+	if y >= v.viewy+v.height {
+		v.viewy = y - (v.height - 1)
 	}
+	if y >= 0 && y < v.viewy {
+		v.viewy = y
+	}
+	v.ValidateViewY()
 }
 
 func (v *Viewport) ShowCursor(x int, y int) {
-	v.view.ShowCursor(v.offx+x, v.offy+y)
+	v.view.ShowCursor(v.offx+x, v.offy+y-v.viewy)
+}
+
+func (v *Viewport) ValidateViewY() {
+	if v.viewy < 0 {
+		v.viewy = 0
+	}
+}
+
+func (v *Viewport) ScrollUp(rows int) {
+	v.viewy -= rows
+	v.ValidateViewY()
+}
+
+func (v *Viewport) ScrollDown(rows int) {
+	v.viewy += rows
+	v.ValidateViewY()
 }
 
 func (v *Viewport) Size() (int, int) {
