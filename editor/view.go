@@ -83,18 +83,16 @@ func (v *View) Draw() {
 	// render line numbers
 	// TODO: improve, alot... :-)
 	style := defaultStyle.Foreground(tcell.ColorBlue)
-	lc := v.LineCache
-	tot := lc.invalidBefore + len(v.lines) + lc.invalidAfter
 	width := len(strconv.Itoa(len(v.lines) + v.LineCache.invalidBefore))
 
 	v.gutter.SetWidth(width + 1)
 	v.view.SetOffsetX(width + 2)
-
-	for i := 0; i < tot; i++ {
-		txt := ralign(strconv.Itoa(lc.invalidBefore+i), width)
+	for i := 0; i < len(v.lines); i++ {
+		nLine := i + v.invalidBefore
+		txt := ralign(strconv.Itoa(nLine), width)
 		width := len(txt)
 		for x := 0; x < width; x++ {
-			v.gutter.SetContent(1+x, i, rune(txt[x]), nil, style)
+			v.gutter.SetContent(1+x, nLine, rune(txt[x]), nil, style)
 		}
 	}
 
