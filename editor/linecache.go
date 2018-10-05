@@ -79,6 +79,9 @@ func (lc *LineCache) ApplyUpdate(update *rpc.Update) {
 		case "invalidate":
 			lc.addInvalid(newLines, &newInvalidBefore, &newInvalidAfter, op.N)
 		case "ins":
+			for i := 0; i < newInvalidAfter; i++ {
+				newLines = append(newLines, nil)
+			}
 			for _, line := range op.Lines {
 				newline := NewLine(line.Text, line.Cursor, line.Styles)
 				newLines = append(newLines, newline)

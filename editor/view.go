@@ -98,6 +98,9 @@ func (v *View) Draw() {
 
 	// TODO: Line numbers in a separate viewport
 	for y, line := range v.lines {
+		if line == nil {
+			continue
+		}
 		nLine := y + v.invalidBefore
 		visualX := 0
 		for x, char := range []rune(line.Text) {
