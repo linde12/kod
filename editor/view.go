@@ -89,7 +89,7 @@ func (v *View) Draw() {
 	v.view.SetOffsetX(width + 2)
 
 	for i := 0; i < tot; i++ {
-		txt := ralign(strconv.Itoa(lc.invalidBefore+i), width)
+		txt := ralign(strconv.Itoa(lc.invalidBefore+i+1), width)
 		width := len(txt)
 		for x := 0; x < width; x++ {
 			v.gutter.SetContent(1+x, i, rune(txt[x]), nil, style)
