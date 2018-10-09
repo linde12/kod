@@ -18,8 +18,12 @@ kod aims to be a fast and modern terminal code-editor. It is inspired by both vi
 # Installation
 kod expects `xi-core` to be set in your `$PATH`. For more information how to build xi-core, please have a look at [xi-editor's github page](https://github.com/google/xi-editor).
 
-Once xi-core is available you should be able to build with `go build`.
-
+Once xi-core is available you should be able to install with following
+```
+ go get -u -v github.com/linde12/kod
+```
+To ensure that kod is available, run `which kod`. It prints kod path in GO binary.
+If you see `kod not found`, you need to add your `$GOPATH/bin` to PATH
 # TODO
 - [ ] Unmarshal known JSON requests into structs, partially done
 - [x] Implement update method
