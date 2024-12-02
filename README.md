@@ -1,4 +1,4 @@
-# kod (WIP)
+# kod (not maintained like xi-core, but great for learning)
 
 [![GoDoc](https://godoc.org/github.com/linde12/kod/cmd?status.svg)](https://godoc.org/github.com/linde12/kod)
 
